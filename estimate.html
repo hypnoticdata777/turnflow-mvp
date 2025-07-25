@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Project Estimate Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+    <h1 class="text-3xl font-bold text-gray-800 mb-4">Turn Estimate Summary</h1>
+    
+    <div id="projectInfo" class="mb-6 text-gray-700"></div>
+
+    <h2 class="text-2xl font-semibold mb-2">Tasks</h2>
+    <div id="taskSummary" class="space-y-4 text-gray-800"></div>
+
+    <div class="mt-6 text-xl font-bold">
+      Total Estimate: <span id="finalEstimate" class="text-green-600">$0.00</span>
+    </div>
+  </div>
+
+  <script>
+    const projectData = JSON.parse(localStorage.getItem('turnflow_project'));
+    const taskData = JSON.parse(localStorage.getItem('turnflow_tasks'));
+
+    const projectInfoDiv = document.getElementById('projectInfo');
+    const taskSummaryDiv = document.getElementById('taskSummary');
+    const finalEstimateSpan = document.getElementById('finalEstimate');
+
+    if (projectData && taskData) {
+      projectInfoDiv.innerHTML = `
+        <p><strong>Project:</strong> ${projectData.projectName}</p>
+        <p><strong>Address:</strong> ${projectData.address}, Unit ${projectData.unit}</p>
+        <p><strong>Owner:</strong> ${projectData.owner}</p>
+        <p><strong>Target Completion:</strong> ${projectData.date}</p>
+      `;
+
+      let grandTotal = 0;
+
+      taskData.forEach((task, index) => {
+        const cost = (task.hours * task.rate) + task.material;
+        grandTotal += cost;
+
+        taskSummaryDiv.innerHTML += `
+          <div class="border p-4 rounded bg-gray-50">
+            <h3 class="font-semibold mb-1">Task #${index + 1}: ${task.name}</h3>
+            <p><strong>Labor:</strong> ${task.hours} hrs @ $${task.rate}/hr = $${(task.hours * task.rate).toFixed(2)}</p>
+            <p><strong>Materials:</strong> $${task.material.toFixed(2)}</p>
+            <p><strong>Total:</strong> $${cost.toFixed(2)}</p>
+          </div>
+        `;
+      });
+
+      finalEstimateSpan.textContent = `$${grandTotal.toFixed(2)}`;
+    } else {
+      projectInfoDiv.innerHTML = `<p class="text-red-500">No project data found.</p>`;
+    }
+  </script>
+</body>
+</html>
