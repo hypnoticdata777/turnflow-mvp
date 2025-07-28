@@ -1,52 +1,88 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Turn Project Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 p-6">
-  <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
-    <h1 class="text-3xl font-bold text-gray-800 mb-4">📋 Project Dashboard</h1>
-    <div id="projectList" class="space-y-4 text-gray-800"></div>
-  </div>
+<!DOCTYPE html> <!-- #LINE 1 -->
+<html lang="en"> <!-- #LINE 2 -->
+<head> <!-- #LINE 3 -->
+  <meta charset="UTF-8" /> <!-- #LINE 4 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <!-- #LINE 5 -->
+  <title>Project Dashboard</title> <!-- #LINE 6 -->
+  <script src="https://cdn.tailwindcss.com"></script> <!-- #LINE 7 -->
+  <script src="script.js" defer></script> <!-- #LINE 8 -->
+</head> <!-- #LINE 9 -->
+
+<body class="bg-gray-100"> <!-- #LINE 10 -->
+  <div class="flex"> <!-- #LINE 11 -->
+
+    <!-- Sidebar --> <!-- #LINE 12 -->
+    <div class="w-64 bg-gray-800 text-white h-screen p-4"> <!-- #LINE 13 -->
+      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2> <!-- #LINE 14 -->
+      <ul> <!-- #LINE 15 -->
+        <li class="mb-3"><a href="dashboard.html" class="text-green-400 font-bold">📋 Dashboard</a></li> <!-- #LINE 16 -->
+        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li> <!-- #LINE 17 -->
+        <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li> <!-- #LINE 18 -->
+        <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li> <!-- #LINE 19 -->
+      </ul> <!-- #LINE 20 -->
+    </div> <!-- #LINE 21 -->
+
+    <!-- Main Content --> <!-- #LINE 22 -->
+    <div class="flex-1 p-6"> <!-- #LINE 23 -->
+      <h1 class="text-3xl font-bold mb-6">📋 Project Dashboard</h1> <!-- #LINE 24 -->
+      <div id="projectList" class="space-y-4"></div> <!-- #LINE 25 -->
+    </div> <!-- #LINE 26 -->
+
+  </div> <!-- #LINE 27 -->
 
   <script>
-    const projectList = document.getElementById("projectList");
-    const allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
+    document.addEventListener("DOMContentLoaded", () => { // #LINE 28
+      const projectList = document.getElementById("projectList"); // #LINE 29
+      const allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || []; // #LINE 30
 
-    if (allProjects.length === 0) {
-      projectList.innerHTML = `<p class="text-red-500">No projects saved yet.</p>`;
-    } else {
-      allProjects.forEach(project => {
-        const total = project.tasks.reduce((sum, task) => {
-          return sum + (task.hours * task.rate + task.material);
-        }, 0);
+      if (allProjects.length === 0) { // #LINE 31
+        projectList.innerHTML = `<p class="text-red-500">No projects saved yet.</p>`; // #LINE 32
+        return; // #LINE 33
+      }
 
-        const div = document.createElement("div");
-        div.classList = "border p-4 rounded bg-gray-50";
+      projectList.innerHTML = allProjects.map((project) => { // #LINE 35
+        const total = project.tasks.reduce(
+          (sum, task) => sum + task.hours * task.rate + task.material,
+          0
+        ); // #LINE 39
 
-        div.innerHTML = `
-          <h2 class="font-semibold text-xl">${project.projectName} (${project.owner})</h2>
-          <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
-          <p><strong>Target Date:</strong> ${project.date}</p>
-          <p><strong>Tasks:</strong> ${project.tasks.length}</p>
-          <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
-          <button class="mt-2 bg-blue-600 text-white px-4 py-1 rounded" onclick="viewProject(${project.id})">View Estimate</button>
+        const tasksHTML = project.tasks
+          .map(
+            (t, i) => `
+            <li class="flex justify-between items-center border p-2 mb-1 bg-gray-50 rounded">
+              <span>${t.name} - ${
+              t.completed ? "✅ Completed" : "⏳ Pending"
+            }</span>
+              ${
+                !t.completed
+                  ? `<button onclick="markTaskComplete(${project.id}, ${i})" class="bg-green-500 text-white px-2 py-1 rounded">Complete</button>`
+                  : ""
+              }
+            </li>
+          `
+          )
+          .join(""); // #LINE 55
+
+        return `
+          <div class="border p-4 rounded bg-white shadow">
+            <h2 class="text-xl font-semibold">${project.projectName} (${project.owner})</h2>
+            <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
+            <p><strong>Target Date:</strong> ${project.date}</p>
+            <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
+
+            <h3 class="mt-3 font-bold">Tasks:</h3>
+            <ul class="mt-1">${tasksHTML}</ul>
+
+            <div class="mt-3 flex gap-2">
+              <button onclick="viewProject(${project.id})" class="bg-blue-600 text-white px-3 py-1 rounded">View Estimate</button>
+              <button onclick="editProject(${project.id})" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
+              <button onclick="deleteProject(${project.id})" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
+            </div>
+          </div>
         `;
+      }).join(""); // #LINE 76
+    });
+  </script> <!-- #LINE 77 -->
 
-        projectList.appendChild(div);
-      });
-    }
-
-    function viewProject(id) {
-      const all = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
-      const selected = all.find(p => p.id === id);
-      localStorage.setItem("turnflow_project", JSON.stringify(selected));
-      localStorage.setItem("turnflow_tasks", JSON.stringify(selected.tasks));
-      window.location.href = "estimate.html";
-    }
-  </script>
-</body>
-</html>
+</body> <!-- #LINE 78 -->
+</html> <!-- #LINE 79 -->

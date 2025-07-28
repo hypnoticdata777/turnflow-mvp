@@ -1,0 +1,100 @@
+<!DOCTYPE html> <!-- #LINE 1 -->
+<html lang="en"> <!-- #LINE 2 -->
+<head> <!-- #LINE 3 -->
+  <meta charset="UTF-8" /> <!-- #LINE 4 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <!-- #LINE 5 -->
+  <title>Backup Projects</title> <!-- #LINE 6 -->
+  <script src="https://cdn.tailwindcss.com"></script> <!-- #LINE 7 -->
+  <script src="script.js" defer></script> <!-- #LINE 8 -->
+</head> <!-- #LINE 9 -->
+
+<body class="bg-gray-100"> <!-- #LINE 10 -->
+  <div class="flex"> <!-- #LINE 11 -->
+
+    <!-- Sidebar --> <!-- #LINE 12 -->
+    <div class="w-64 bg-gray-800 text-white h-screen p-4"> <!-- #LINE 13 -->
+      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2> <!-- #LINE 14 -->
+      <ul> <!-- #LINE 15 -->
+        <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li> <!-- #LINE 16 -->
+        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li> <!-- #LINE 17 -->
+        <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li> <!-- #LINE 18 -->
+        <li class="mb-3"><a href="backup.html" class="text-green-400 font-bold">💾 Backup</a></li> <!-- #LINE 19 -->
+      </ul> <!-- #LINE 20 -->
+    </div> <!-- #LINE 21 -->
+
+    <!-- Main Content --> <!-- #LINE 22 -->
+    <div class="flex-1 p-6"> <!-- #LINE 23 -->
+      <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow"> <!-- #LINE 24 -->
+        <h1 class="text-2xl font-bold mb-6">Backup & Restore Projects</h1> <!-- #LINE 25 -->
+
+        <!-- Backup Button --> <!-- #LINE 26 -->
+        <button id="backupBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-4 w-full">
+          📥 Download Backup (JSON)
+        </button> <!-- #LINE 27 -->
+
+        <!-- Restore Section --> <!-- #LINE 28 -->
+        <h2 class="text-xl font-semibold mb-2">Restore from Backup</h2> <!-- #LINE 29 -->
+        <input type="file" id="fileInput" class="mb-4" accept=".json" /> <!-- #LINE 30 -->
+        <button id="restoreBtn" class="bg-green-600 text-white px-4 py-2 rounded w-full">
+          📤 Restore Backup
+        </button> <!-- #LINE 31 -->
+
+        <p id="statusMsg" class="mt-4 text-gray-700"></p> <!-- #LINE 32 -->
+      </div> <!-- #LINE 33 -->
+    </div> <!-- #LINE 34 -->
+
+  </div> <!-- #LINE 35 -->
+
+  <script>
+    // #LINE 36
+    document.addEventListener("DOMContentLoaded", () => { // #LINE 37
+      const backupBtn = document.getElementById("backupBtn"); // #LINE 38
+      const restoreBtn = document.getElementById("restoreBtn"); // #LINE 39
+      const fileInput = document.getElementById("fileInput"); // #LINE 40
+      const statusMsg = document.getElementById("statusMsg"); // #LINE 41
+
+      // ✅ Download JSON Backup
+      backupBtn.addEventListener("click", () => { // #LINE 42
+        const projects = localStorage.getItem("turnflow_projects") || "[]"; // #LINE 43
+        const blob = new Blob([projects], { type: "application/json" }); // #LINE 44
+        const url = URL.createObjectURL(blob); // #LINE 45
+        const a = document.createElement("a"); // #LINE 46
+        a.href = url; // #LINE 47
+        a.download = "turnflow_backup.json"; // #LINE 48
+        a.click(); // #LINE 49
+        URL.revokeObjectURL(url); // #LINE 50
+      });
+
+      // ✅ Restore JSON Backup
+      restoreBtn.addEventListener("click", () => { // #LINE 51
+        const file = fileInput.files[0]; // #LINE 52
+        if (!file) { // #LINE 53
+          statusMsg.textContent = "❌ Please select a JSON file first."; // #LINE 54
+          statusMsg.className = "text-red-500"; // #LINE 55
+          return; // #LINE 56
+        }
+
+        const reader = new FileReader(); // #LINE 57
+        reader.onload = (e) => { // #LINE 58
+          try { // #LINE 59
+            const data = JSON.parse(e.target.result); // #LINE 60
+            if (Array.isArray(data)) { // #LINE 61
+              localStorage.setItem("turnflow_projects", JSON.stringify(data)); // #LINE 62
+              statusMsg.textContent = "✅ Backup restored! Refresh dashboard."; // #LINE 63
+              statusMsg.className = "text-green-600"; // #LINE 64
+            } else { // #LINE 65
+              throw new Error("Invalid format"); // #LINE 66
+            }
+          } catch { // #LINE 67
+            statusMsg.textContent = "❌ Invalid JSON file."; // #LINE 68
+            statusMsg.className = "text-red-500"; // #LINE 69
+          }
+        }; // #LINE 70
+
+        reader.readAsText(file); // #LINE 71
+      });
+    });
+  </script> <!-- #LINE 72 -->
+
+</body> <!-- #LINE 73 -->
+</html> <!-- #LINE 74 -->

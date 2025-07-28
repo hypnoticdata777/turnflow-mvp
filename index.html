@@ -1,57 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>TurnFlow™ - Create Project</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body class="bg-gray-100 p-6">
-  <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
-    <h1 class="text-3xl font-bold text-gray-800 mb-4">Create New Turn Project</h1>
+<!DOCTYPE html> <!-- #LINE 1 -->
+<html lang="en"> <!-- #LINE 2 -->
+<head> <!-- #LINE 3 -->
+  <meta charset="UTF-8" /> <!-- #LINE 4 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <!-- #LINE 5 -->
+  <title>Create New Turn Project</title> <!-- #LINE 6 -->
+  <script src="https://cdn.tailwindcss.com"></script> <!-- #LINE 7 -->
+  <script src="script.js" defer></script> <!-- #LINE 8 -->
+</head> <!-- #LINE 9 -->
 
-    <form id="project-form" class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Project Name</label>
-        <input type="text" id="projectName" class="mt-1 block w-full border rounded p-2" />
-      </div>
+<body class="bg-gray-100"> <!-- #LINE 10 -->
+  <div class="flex"> <!-- #LINE 11 -->
 
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Property Address</label>
-          <input type="text" id="propertyAddress" class="mt-1 block w-full border rounded p-2" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Unit Number</label>
-          <input type="text" id="unitNumber" class="mt-1 block w-full border rounded p-2" />
-        </div>
-      </div>
+    <!-- Sidebar --> <!-- #LINE 12 -->
+    <div class="w-64 bg-gray-800 text-white h-screen p-4"> <!-- #LINE 13 -->
+      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2> <!-- #LINE 14 -->
+      <ul> <!-- #LINE 15 -->
+        <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li> <!-- #LINE 16 -->
+        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li> <!-- #LINE 17 -->
+        <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li> <!-- #LINE 18 -->
+        <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li> <!-- #LINE 19 -->
+      </ul> <!-- #LINE 20 -->
+    </div> <!-- #LINE 21 -->
 
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Owner Name</label>
-        <input type="text" id="ownerName" class="mt-1 block w-full border rounded p-2" />
-      </div>
+    <!-- Main Content --> <!-- #LINE 22 -->
+    <div class="flex-1 p-6"> <!-- #LINE 23 -->
+      <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow"> <!-- #LINE 24 -->
+        <h1 class="text-2xl font-bold mb-4">Create New Turn Project</h1> <!-- #LINE 25 -->
 
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Target Completion</label>
-        <input type="date" id="completionDate" class="mt-1 block w-full border rounded p-2" />
-      </div>
+        <!-- Project Name --> <!-- #LINE 26 -->
+        <label class="block mb-2 font-semibold">Project Name</label> <!-- #LINE 27 -->
+        <input type="text" id="projectName" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 28 -->
 
-      <div id="taskList" class="mt-6 space-y-4">
-        <!-- Dynamic tasks will go here -->
-      </div>
+        <!-- Property Address --> <!-- #LINE 29 -->
+        <label class="block mb-2 font-semibold">Property Address</label> <!-- #LINE 30 -->
+        <input type="text" id="propertyAddress" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 31 -->
 
-      <button type="button" id="addTaskBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">+ Add Task</button>
+        <!-- Unit Number --> <!-- #LINE 32 -->
+        <label class="block mb-2 font-semibold">Unit Number</label> <!-- #LINE 33 -->
+        <input type="text" id="unitNumber" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 34 -->
 
-      <div class="mt-4">
-        <strong>Estimated Total:</strong> <span id="totalCost">$0.00</span>
-      </div>
+        <!-- Owner Name --> <!-- #LINE 35 -->
+        <label class="block mb-2 font-semibold">Owner Name</label> <!-- #LINE 36 -->
+        <input type="text" id="ownerName" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 37 -->
 
-      <button type="submit" class="mt-4 bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Submit for Approval</button>
-    </form>
-  </div>
+        <!-- Target Completion Date --> <!-- #LINE 38 -->
+        <label class="block mb-2 font-semibold">Target Completion</label> <!-- #LINE 39 -->
+        <input type="date" id="completionDate" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 40 -->
 
-  <script src="script.js"></script>
-</body>
-</html>
+        <!-- Add Task Button --> <!-- #LINE 41 -->
+        <button id="addTaskBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-4">+ Add Task</button> <!-- #LINE 42 -->
+
+        <!-- Task List Container --> <!-- #LINE 43 -->
+        <div id="taskList"></div> <!-- #LINE 44 -->
+
+        <!-- Estimated Total --> <!-- #LINE 45 -->
+        <p class="font-bold mt-4">Estimated Total: <span id="totalEstimate">$0.00</span></p> <!-- #LINE 46 -->
+
+        <!-- Submit Button --> <!-- #LINE 47 -->
+        <button id="saveProjectBtn" class="bg-green-600 text-white px-4 py-2 rounded mt-4">Submit for Approval</button> <!-- #LINE 48 -->
+      </div> <!-- #LINE 49 -->
+    </div> <!-- #LINE 50 -->
+
+  </div> <!-- #LINE 51 -->
+
+  <!-- ✅ FIX: Ensure JS binds events when page loads -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("addTaskBtn").addEventListener("click", addTask);
+      document.getElementById("saveProjectBtn").addEventListener("click", saveProject);
+    });
+  </script> <!-- #LINE 52 -->
+
+</body> <!-- #LINE 53 -->
+</html> <!-- #LINE 54 -->
