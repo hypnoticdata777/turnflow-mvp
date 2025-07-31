@@ -8,9 +8,27 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> <!-- #LINE 8 -->
 </head> <!-- #LINE 9 -->
 
-<body class="bg-gray-100 p-6"> <!-- #LINE 10 -->
-  <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow"> <!-- #LINE 11 -->
-    <h1 class="text-3xl font-bold text-gray-800 mb-4">Turn Estimate Summary</h1> <!-- #LINE 12 -->
+<<body class="bg-gray-100">
+  <div class="flex">
+
+    <!-- Sidebar -->
+    <div class="w-64 bg-gray-800 text-white h-screen p-4">
+      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
+      <ul>
+        <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
+        <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
+        <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
+        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
+        <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
+        <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
+        <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-6">
+      <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+
 
     <!-- Project Info -->
     <div id="projectInfo" class="mb-6 text-gray-700"></div> <!-- #LINE 13 -->
@@ -91,6 +109,8 @@
       doc.save("estimate.pdf"); // #LINE 63
     } // #LINE 64
   </script> <!-- #LINE 65 -->
+    </div> <!-- close flex-1 -->
+  </div> <!-- close flex -->
+</body>
+</html>
 
-</body> <!-- #LINE 66 -->
-</html> <!-- #LINE 67 -->

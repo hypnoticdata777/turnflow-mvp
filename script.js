@@ -86,7 +86,8 @@ function saveProject() {                                    // #LINE 68
     address: document.getElementById("propertyAddress").value, // #LINE 72
     unit: document.getElementById("unitNumber").value,      // #LINE 73
     owner: document.getElementById("ownerName").value,      // #LINE 74
-    date: document.getElementById("completionDate").value,  // #LINE 75
+    date: document.getElementById("completionDate").value,
+    status: "Pending Approval",  // #LINE 76
     tasks: []                                               // #LINE 76
   };                                                        // #LINE 77
 

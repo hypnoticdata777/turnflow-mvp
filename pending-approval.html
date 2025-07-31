@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pending Approval - TurnFlow™</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="script.js" defer></script>
+</head>
+
+<body class="bg-gray-100">
+  <div class="flex">
+    <!-- Sidebar -->
+    <div class="w-64 bg-gray-800 text-white h-screen p-4">
+      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
+      <ul>
+        <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
+        <li class="mb-3"><a href="pending-approval.html" class="text-green-400 font-bold">⏳ Pending Approval</a></li>
+        <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
+        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
+        <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
+        <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
+        <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-6">
+      <h1 class="text-3xl font-bold mb-6">⏳ Projects Pending Approval</h1>
+      <div id="projectList" class="space-y-4"></div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const projectList = document.getElementById("projectList");
+      const projects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
+
+      const filtered = projects.filter(p => p.status === "Pending Approval");
+
+      if (filtered.length === 0) {
+        projectList.innerHTML = `<p class="text-red-500">No projects pending approval.</p>`;
+        return;
+      }
+
+      projectList.innerHTML = filtered.map(p => `
+        <div class="border p-4 rounded bg-white shadow">
+          <h2 class="text-xl font-semibold">${p.projectName}</h2>
+          <p><strong>Owner:</strong> ${p.owner}</p>
+          <p><strong>Address:</strong> ${p.address}, Unit ${p.unit}</p>
+          <p><strong>Target Date:</strong> ${p.date}</p>
+          <button onclick="viewProject(${p.id})" class="bg-blue-500 text-white px-3 py-1 rounded mt-2">View</button>
+        </div>
+      `).join("");
+    });
+  </script>
+</body>
+</html>

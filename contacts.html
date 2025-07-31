@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contacts - TurnFlow™</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="script.js" defer></script>
+</head>
+
+<body class="bg-gray-100">
+  <div class="flex">
+    <!-- Sidebar -->
+    <div class="w-64 bg-gray-800 text-white h-screen p-4">
+      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
+      <ul>
+        <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
+        <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
+        <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
+        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
+        <li class="mb-3"><a href="contacts.html" class="text-green-400 font-bold">👥 Contacts</a></li>
+        <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
+        <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-6">
+      <h1 class="text-3xl font-bold mb-6">👥 Contacts</h1>
+
+      <div class="bg-white p-4 rounded-xl shadow mb-6">
+        <h2 class="text-xl font-semibold mb-4">Add New Contact</h2>
+        <form id="contact-form" class="space-y-3">
+          <input id="contactName" type="text" placeholder="Full Name" class="w-full p-2 border rounded" required>
+          <input id="contactEmail" type="email" placeholder="Email" class="w-full p-2 border rounded" required>
+          <input id="contactPhone" type="text" placeholder="Phone" class="w-full p-2 border rounded" required>
+          <input id="contactProperty" type="text" placeholder="Property Address" class="w-full p-2 border rounded" required>
+          <button class="bg-green-600 text-white px-4 py-2 rounded" type="submit">Add Contact</button>
+        </form>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl shadow">
+        <h2 class="text-xl font-semibold mb-4">Saved Contacts</h2>
+        <div id="contactList" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const contactListDiv = document.getElementById("contactList");
+      const contactForm = document.getElementById("contact-form");
+
+      function renderContacts() {
+        const contacts = JSON.parse(localStorage.getItem("turnflow_contacts")) || [];
+        contactListDiv.innerHTML = contacts.map((c, i) => `
+          <div class="p-3 border rounded flex justify-between items-center">
+            <div>
+              <p><strong>${c.name}</strong> (${c.email})</p>
+              <p>📞 ${c.phone}</p>
+              <p>🏠 ${c.property}</p>
+            </div>
+            <button onclick="deleteContact(${i})" class="bg-red-500 text-white px-3 py-1 rounded">Delete</button>
+          </div>
+        `).join("");
+      }
+
+      window.deleteContact = (i) => {
+        const contacts = JSON.parse(localStorage.getItem("turnflow_contacts")) || [];
+        contacts.splice(i, 1);
+        localStorage.setItem("turnflow_contacts", JSON.stringify(contacts));
+        renderContacts();
+      };
+
+      contactForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const newContact = {
+          name: document.getElementById("contactName").value,
+          email: document.getElementById("contactEmail").value,
+          phone: document.getElementById("contactPhone").value,
+          property: document.getElementById("contactProperty").value
+        };
+        const contacts = JSON.parse(localStorage.getItem("turnflow_contacts")) || [];
+        contacts.push(newContact);
+        localStorage.setItem("turnflow_contacts", JSON.stringify(contacts));
+        contactForm.reset();
+        renderContacts();
+      });
+
+      renderContacts();
+    });
+  </script>
+</body>
+</html>
