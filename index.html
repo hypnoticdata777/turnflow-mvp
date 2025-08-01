@@ -22,6 +22,8 @@
   <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
   <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
   <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
+  <li class="mb-3"><a href="technician.html" class="hover:text-green-400">🛠️ Technician</a></li>
+
 </ul>
 
     </div> <!-- #LINE 21 -->
@@ -52,7 +54,8 @@
         <input type="date" id="completionDate" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 40 -->
 
         <!-- Add Task Button --> <!-- #LINE 41 -->
-        <button id="addTaskBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-4">+ Add Task</button> <!-- #LINE 42 -->
+        <button id="addTaskBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-4">+ Add Task</button>
+
 
         <!-- Task List Container --> <!-- #LINE 43 -->
         <div id="taskList"></div> <!-- #LINE 44 -->
@@ -61,19 +64,12 @@
         <p class="font-bold mt-4">Estimated Total: <span id="totalEstimate">$0.00</span></p> <!-- #LINE 46 -->
 
         <!-- Submit Button --> <!-- #LINE 47 -->
-        <button id="saveProjectBtn" class="bg-green-600 text-white px-4 py-2 rounded mt-4">Submit for Approval</button> <!-- #LINE 48 -->
+        <button id="saveProjectBtn" class="bg-green-600 text-white px-4 py-2 rounded mt-4">Submit for Approval</button>
+
       </div> <!-- #LINE 49 -->
     </div> <!-- #LINE 50 -->
 
   </div> <!-- #LINE 51 -->
-
-  <!-- ✅ FIX: Ensure JS binds events when page loads -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("addTaskBtn").addEventListener("click", addTask);
-      document.getElementById("saveProjectBtn").addEventListener("click", saveProject);
-    });
-  </script> <!-- #LINE 52 -->
 
 </body> <!-- #LINE 53 -->
 </html> <!-- #LINE 54 -->

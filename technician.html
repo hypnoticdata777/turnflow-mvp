@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Technician Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="script.js" defer></script>
+</head>
+<body class="bg-gray-100">
+  <div class="flex">
+    <!-- Sidebar -->
+    <div class="w-64 bg-gray-800 text-white h-screen p-4">
+      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
+      <ul>
+        <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
+        <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
+        <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
+        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
+        <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
+        <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
+        <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
+        <li class="mb-3"><a href="technician.html" class="text-green-400 font-bold">🛠 Technician View</a></li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-6">
+      <h1 class="text-3xl font-bold mb-6">🛠 Technician Dashboard</h1>
+      <div id="techProjects" class="space-y-4"></div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const container = document.getElementById("techProjects");
+      const projects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
+
+      if (projects.length === 0) {
+        container.innerHTML = `<p class="text-gray-500">No projects available.</p>`;
+        return;
+      }
+
+      container.innerHTML = projects.map(project => `
+        <div class="bg-white p-4 rounded shadow">
+          <h2 class="text-xl font-bold">${project.projectName}</h2>
+          <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
+          <p><strong>Owner:</strong> ${project.owner}</p>
+          <p><strong>Target Date:</strong> ${project.date || "N/A"}</p>
+          <p class="font-semibold mt-2">Tasks:</p>
+          <ul class="mt-2 space-y-2">
+            ${project.tasks.map((task, i) => `
+              <li class="border p-2 rounded">
+                <p class="font-medium">${task.name} - ${task.completed ? "✅ Completed" : "⏳ Pending"}</p>
+                
+                <div class="flex gap-2 mt-2 flex-wrap">
+                  <input type="file" accept="image/*" id="before-${project.id}-${i}" class="border p-1 rounded text-sm"/>
+                  <button onclick="uploadPhoto('${project.id}', ${i}, 'before')" class="bg-blue-500 text-white px-3 py-1 rounded">Upload Before</button>
+
+                  <input type="file" accept="image/*" id="after-${project.id}-${i}" class="border p-1 rounded text-sm"/>
+                  <button onclick="uploadPhoto('${project.id}', ${i}, 'after')" class="bg-green-500 text-white px-3 py-1 rounded">Upload After</button>
+
+                  <button onclick="markTaskComplete('${project.id}', ${i})" class="bg-purple-500 text-white px-3 py-1 rounded" ${task.completed ? "disabled" : ""}>Mark Complete</button>
+                </div>
+
+                <div class="mt-2">
+                  <label class="block text-sm font-medium">Upload Receipt:</label>
+                  <input type="file" accept="image/*" id="receipt-${project.id}-${i}" class="border p-1 rounded text-sm"/>
+                  <button onclick="uploadReceipt('${project.id}', ${i})" class="bg-yellow-500 text-white px-3 py-1 rounded mt-1">Upload</button>
+                </div>
+              </li>
+            `).join("")}
+          </ul>
+        </div>
+      `).join("");
+    });
+  </script>
+</body>
+</html>
