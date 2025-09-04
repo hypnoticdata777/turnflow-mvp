@@ -5,7 +5,46 @@
 // #LINE 1 – Global Variables
 let taskCount = 0;
 
+/* ============================================================
+   CHECKPOINT 2 – Status Helpers (added, NOT used yet)
+   Safe to keep; no behavior changes until we call them later.
+============================================================ */
+function tf_isValidDate(d) { return d instanceof Date && !isNaN(d); }
+
+function tf_parseDate(value) {
+  if (value instanceof Date) return value;
+  if (typeof value === "number") return new Date(value);
+  const d = new Date(value);
+  return tf_isValidDate(d) ? d : undefined;
+}
+
+// Returns one of: 'completed' | 'overdue' | 'blocked' | 'inprogress' | 'open'
+function tf_getTaskStatus(task) {
+  const now = new Date();
+  const completed = !!task?.completed;
+  const blocked = !!task?.blocked;     // optional field; fine if undefined
+  const start = tf_parseDate(task?.startTime);
+  const end   = tf_parseDate(task?.endTime);
+  const due   = tf_parseDate(task?.dueDate);
+
+  if (completed) return "completed";
+  if (blocked)   return "blocked";
+  if (due && due < now) return "overdue";
+  if (start && !end)    return "inprogress";
+  return "open"; // aligns with your current "Pending" vibe
+}
+
+function tf_statusLabel(key) {
+  switch (key) {
+    case "completed":  return "Completed";
+    case "overdue":    return "Overdue";
+    case "blocked":    return "Blocked";
+    case "inprogress": return "In Progress";
+    default:           return "Pending";
+  }
+}
 // ============================
+
 // #LINE 5 – Load Editing Project if Exists
 const editingProject = JSON.parse(localStorage.getItem("editing_project"));
 if (editingProject) {
@@ -155,16 +194,15 @@ if (document.getElementById("taskChart") || document.getElementById("costChart")
     let total = 0;
 
     p.tasks.forEach(t => {
-  const hours = parseFloat(t.hours) || 0;
-  const rate = parseFloat(t.rate) || 0;
-  const materials = parseFloat(t.material) || 0;
+      const hours = parseFloat(t.hours) || 0;
+      const rate = parseFloat(t.rate) || 0;
+      const materials = parseFloat(t.material) || 0;
 
-  if (t.completed) completed++;
-  else pending++;
+      if (t.completed) completed++;
+      else pending++;
 
-  total += (hours * rate) + materials;
-});
-
+      total += (hours * rate) + materials;
+    });
 
     costData[p.address] = (costData[p.address] || 0) + total;
   });
