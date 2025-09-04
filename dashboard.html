@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <!-- #LINE 5 -->
   <title>Project Dashboard</title> <!-- #LINE 6 -->
   <script src="https://cdn.tailwindcss.com"></script> <!-- #LINE 7 -->
+<link rel="stylesheet" href="style.css" />
   <script src="script.js" defer></script> <!-- #LINE 8 -->
 </head> <!-- #LINE 9 -->
 
@@ -37,58 +38,66 @@
   </div> <!-- #LINE 27 -->
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => { // #LINE 28
-      const projectList = document.getElementById("projectList"); // #LINE 29
-      const allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || []; // #LINE 30
+  document.addEventListener("DOMContentLoaded", () => { // #LINE 28
+    const projectList = document.getElementById("projectList"); // #LINE 29
+    const allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || []; // #LINE 30
 
-      if (allProjects.length === 0) { // #LINE 31
-        projectList.innerHTML = `<p class="text-red-500">No projects saved yet.</p>`; // #LINE 32
-        return; // #LINE 33
-      }
+    if (allProjects.length === 0) { // #LINE 31
+      projectList.innerHTML = `<p class="text-red-500">No projects saved yet.</p>`; // #LINE 32
+      return; // #LINE 33
+    }
 
-      projectList.innerHTML = allProjects.map((project) => { // #LINE 35
-        const total = project.tasks.reduce(
-          (sum, task) => sum + task.hours * task.rate + task.material,
-          0
-        ); // #LINE 39
+    projectList.innerHTML = allProjects.map((project) => { // #LINE 35
+      const total = project.tasks.reduce(
+        (sum, task) => sum + task.hours * task.rate + task.material,
+        0
+      ); // #LINE 39
 
-        const tasksHTML = project.tasks
-          .map(
-            (t, i) => `
-            <li class="flex justify-between items-center border p-2 mb-1 bg-gray-50 rounded">
-              <span>${t.name} - ${
-              t.completed ? "✅ Completed" : "⏳ Pending"
-            }</span>
+      // ====== UPDATED BLOCK (badge + data-task-id) ======
+      const tasksHTML = project.tasks
+        .map((t, i) => {
+          // Use helpers if available; otherwise fall back to text
+          const key = (window.tf_getTaskStatus)
+            ? tf_getTaskStatus(t)
+            : (t.completed ? "completed" : "open");
+          const label = (window.tf_statusLabel)
+            ? tf_statusLabel(key)
+            : (t.completed ? "Completed" : "Pending");
+
+          const badge = `<span class="task-status tf-badge" data-status="${key}">${label}</span>`;
+
+          return `
+            <li class="flex justify-between items-center border p-2 mb-1 bg-gray-50 rounded"
+                data-task-id="${i}">
+              <span>${t.name} - ${badge}</span>
               ${
                 !t.completed
                   ? `<button onclick="markTaskComplete(${project.id}, ${i})" class="bg-green-500 text-white px-2 py-1 rounded">Complete</button>`
                   : ""
               }
             </li>
-          `
-          )
-          .join(""); // #LINE 55
+          `;
+        })
+        .join("");
+      // ====== END UPDATED BLOCK ======
 
-        return `
-          <div class="border p-4 rounded bg-white shadow">
-            <h2 class="text-xl font-semibold">${project.projectName} (${project.owner})</h2>
-            <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
-            <p><strong>Target Date:</strong> ${project.date}</p>
-            <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
+      return `
+        <div class="border p-4 rounded bg-white shadow">
+          <h2 class="text-xl font-semibold">${project.projectName} (${project.owner})</h2>
+          <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
+          <p><strong>Target Date:</strong> ${project.date}</p>
+          <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
 
-            <h3 class="mt-3 font-bold">Tasks:</h3>
-            <ul class="mt-1">${tasksHTML}</ul>
+          <h3 class="mt-3 font-bold">Tasks:</h3>
+          <ul class="mt-1">${tasksHTML}</ul>
 
-            <div class="mt-3 flex gap-2">
-              <button onclick="viewProject(${project.id})" class="bg-blue-600 text-white px-3 py-1 rounded">View Estimate</button>
-              <button onclick="editProject(${project.id})" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
-              <button onclick="deleteProject(${project.id})" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
-            </div>
+          <div class="mt-3 flex gap-2">
+            <button onclick="viewProject(${project.id})" class="bg-blue-600 text-white px-3 py-1 rounded">View Estimate</button>
+            <button onclick="editProject(${project.id})" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
+            <button onclick="deleteProject(${project.id})" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
           </div>
-        `;
-      }).join(""); // #LINE 76
-    });
-  </script> <!-- #LINE 77 -->
-
-</body> <!-- #LINE 78 -->
-</html> <!-- #LINE 79 -->
+        </div>
+      `;
+    }).join(""); // #LINE 76
+  });
+</script>

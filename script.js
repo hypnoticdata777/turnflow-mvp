@@ -255,6 +255,9 @@ window.deleteProject = deleteProject;
 window.editProject = editProject;
 window.viewProject = viewProject;
 window.markTaskComplete = markTaskComplete;
+window.tf_getTaskStatus = tf_getTaskStatus;
+window.tf_statusLabel   = tf_statusLabel;
+
 // ============================
 // #LINE 220 – Attach Events on DOMContentLoaded
 document.addEventListener("DOMContentLoaded", () => {
