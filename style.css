@@ -9,3 +9,8 @@
 .tf-badge[data-status="completed"] { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
 .tf-badge[data-status="blocked"] { background:#fff7ed; color:#9a3412; border-color:#fed7aa; }
 .tf-badge[data-status="overdue"] { background:#fef2f2; color:#7f1d1d; border-color:#fecaca; }
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
