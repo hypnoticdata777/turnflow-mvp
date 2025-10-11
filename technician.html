@@ -7,10 +7,11 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="script.js" defer></script>
 </head>
+
 <body class="bg-gray-100">
   <div class="flex">
     <!-- Sidebar -->
-    <div class="w-64 bg-gray-800 text-white h-screen p-4">
+    <aside class="w-64 bg-gray-800 text-white h-screen p-4">
       <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
       <ul>
         <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
@@ -22,58 +23,67 @@
         <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
         <li class="mb-3"><a href="technician.html" class="text-green-400 font-bold">🛠 Technician View</a></li>
       </ul>
-    </div>
+    </aside>
 
     <!-- Main Content -->
-    <div class="flex-1 p-6">
+    <main class="flex-1 p-6">
+      <header class="flex justify-end mb-4">
+        <button id="logoutBtn" class="px-3 py-1 border rounded">Logout</button>
+      </header>
+
       <h1 class="text-3xl font-bold mb-6">🛠 Technician Dashboard</h1>
-      <div id="techProjects" class="space-y-4"></div>
-    </div>
+
+      <!-- Uploader UI (matches /js/technician.js selectors) -->
+      <section class="max-w-3xl bg-white p-4 rounded shadow">
+        <h2 class="text-xl font-semibold mb-4">Upload Photos</h2>
+
+        <label class="block mb-2">Project ID
+          <input id="projectId" class="w-full border p-2 rounded" placeholder="e.g. TUR-001" required>
+        </label>
+
+        <label class="block mb-4">Task ID
+          <input id="taskId" class="w-full border p-2 rounded" placeholder="e.g. TAS-001" required>
+        </label>
+
+        <div class="grid md:grid-cols-3 gap-4">
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">Before</h3>
+            <input id="beforeInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="before" class="uploadBtn bg-blue-600 text-white px-3 py-1 rounded">Upload Before</button>
+          </div>
+
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">After</h3>
+            <input id="afterInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="after" class="uploadBtn bg-green-600 text-white px-3 py-1 rounded">Upload After</button>
+          </div>
+
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">Receipt</h3>
+            <input id="receiptInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="receipt" class="uploadBtn bg-yellow-600 text-white px-3 py-1 rounded">Upload Receipt</button>
+          </div>
+        </div>
+
+        <progress id="prog" value="0" max="100" class="w-full mt-4"></progress>
+        <p id="status" class="text-sm mt-1 text-gray-600"></p>
+      </section>
+
+      <section class="max-w-5xl bg-white p-4 rounded shadow mt-6">
+        <h2 class="text-xl font-semibold mb-3">Gallery</h2>
+        <div id="gallery" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+      </section>
+    </main>
   </div>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const container = document.getElementById("techProjects");
-      const projects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
-
-      if (projects.length === 0) {
-        container.innerHTML = `<p class="text-gray-500">No projects available.</p>`;
-        return;
-      }
-
-      container.innerHTML = projects.map(project => `
-        <div class="bg-white p-4 rounded shadow">
-          <h2 class="text-xl font-bold">${project.projectName}</h2>
-          <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
-          <p><strong>Owner:</strong> ${project.owner}</p>
-          <p><strong>Target Date:</strong> ${project.date || "N/A"}</p>
-          <p class="font-semibold mt-2">Tasks:</p>
-          <ul class="mt-2 space-y-2">
-            ${project.tasks.map((task, i) => `
-              <li class="border p-2 rounded">
-                <p class="font-medium">${task.name} - ${task.completed ? "✅ Completed" : "⏳ Pending"}</p>
-                
-                <div class="flex gap-2 mt-2 flex-wrap">
-                  <input type="file" accept="image/*" id="before-${project.id}-${i}" class="border p-1 rounded text-sm"/>
-                  <button onclick="uploadPhoto('${project.id}', ${i}, 'before')" class="bg-blue-500 text-white px-3 py-1 rounded">Upload Before</button>
-
-                  <input type="file" accept="image/*" id="after-${project.id}-${i}" class="border p-1 rounded text-sm"/>
-                  <button onclick="uploadPhoto('${project.id}', ${i}, 'after')" class="bg-green-500 text-white px-3 py-1 rounded">Upload After</button>
-
-                  <button onclick="markTaskComplete('${project.id}', ${i})" class="bg-purple-500 text-white px-3 py-1 rounded" ${task.completed ? "disabled" : ""}>Mark Complete</button>
-                </div>
-
-                <div class="mt-2">
-                  <label class="block text-sm font-medium">Upload Receipt:</label>
-                  <input type="file" accept="image/*" id="receipt-${project.id}-${i}" class="border p-1 rounded text-sm"/>
-                  <button onclick="uploadReceipt('${project.id}', ${i})" class="bg-yellow-500 text-white px-3 py-1 rounded mt-1">Upload</button>
-                </div>
-              </li>
-            `).join("")}
-          </ul>
-        </div>
-      `).join("");
-    });
+  <!-- Auth + Tech uploader (single source of truth) -->
+  <script type="module" src="./js/firebase-config.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+  <script type="module" src="./js/technician.js"></script>
+  <script type="module">
+    import { watchAuth, logout } from "./js/auth.js";
+    watchAuth(); // send guests to index.html
+    document.getElementById("logoutBtn")?.addEventListener("click", logout);
   </script>
 </body>
 </html>

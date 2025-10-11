@@ -1,88 +1,95 @@
-<!DOCTYPE html> <!-- #LINE 1 -->
-<html lang="en"> <!-- #LINE 2 -->
-<head> <!-- #LINE 3 -->
-  <meta charset="UTF-8" /> <!-- #LINE 4 -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <!-- #LINE 5 -->
-  <title>Create New Turn Project</title> <!-- #LINE 6 -->
-  <script src="https://cdn.tailwindcss.com"></script> <!-- #LINE 7 -->
-  <script src="script.js" defer></script> <!-- #LINE 8 -->
-  <!-- Firebase App (obligatorio para usar Firestore) -->
-<script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-app.js"></script>
-
-<!-- Firebase Firestore -->
-<script src="https://www.gstatic.com/firebasejs/10.7.2/firebase-firestore.js"></script>
-
-
-</head> <!-- #LINE 9 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create New Turn Project</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="script.js" defer></script>
+</head>
 
 <body class="bg-gray-100">
   <div class="container">
     <div class="flex" id="layout">
       <aside id="sidebar" class="w-64 bg-gray-800 text-white h-screen p-4">
-  <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
-  <ul>
-    <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
-    <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
-    <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
-    <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
-    <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
-    <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
-    <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
-    <li class="mb-3"><a href="technician.html" class="hover:text-green-400">🛠 Technician</a></li>
-  </ul>
-</aside>
-<main id="content" class="flex-1 p-6">
-  <!-- Page-specific content goes here -->
-  <h1 class="text-3xl font-bold mb-4">Welcome to TurnFlow™</h1>
-  <p class="text-gray-600">Select a section from the sidebar to get started.</p>
-</main>
+        <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
+        <ul>
+          <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
+          <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
+          <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
+          <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
+          <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
+          <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
+          <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
+          <li class="mb-3"><a href="technician.html" class="hover:text-green-400">🛠 Technician</a></li>
+        </ul>
+      </aside>
 
+      <main id="content" class="flex-1 p-6">
+        <h1 class="text-3xl font-bold mb-4">Welcome to TurnFlow™</h1>
+        <p class="text-gray-600">Select a section from the sidebar to get started.</p>
+      </main>
+    </div>
 
-    </div> <!-- #LINE 21 -->
+    <!-- Main Content -->
+    <div class="flex-1 p-6">
+      <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
+        <h1 class="text-2xl font-bold mb-4">Create New Turn Project</h1>
 
-    <!-- Main Content --> <!-- #LINE 22 -->
-    <div class="flex-1 p-6"> <!-- #LINE 23 -->
-      <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow"> <!-- #LINE 24 -->
-        <h1 class="text-2xl font-bold mb-4">Create New Turn Project</h1> <!-- #LINE 25 -->
+        <label class="block mb-2 font-semibold">Project Name</label>
+        <input type="text" id="projectName" class="w-full border p-2 rounded mb-4" />
 
-        <!-- Project Name --> <!-- #LINE 26 -->
-        <label class="block mb-2 font-semibold">Project Name</label> <!-- #LINE 27 -->
-        <input type="text" id="projectName" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 28 -->
+        <label class="block mb-2 font-semibold">Property Address</label>
+        <input type="text" id="propertyAddress" class="w-full border p-2 rounded mb-4" />
 
-        <!-- Property Address --> <!-- #LINE 29 -->
-        <label class="block mb-2 font-semibold">Property Address</label> <!-- #LINE 30 -->
-        <input type="text" id="propertyAddress" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 31 -->
+        <label class="block mb-2 font-semibold">Unit Number</label>
+        <input type="text" id="unitNumber" class="w-full border p-2 rounded mb-4" />
 
-        <!-- Unit Number --> <!-- #LINE 32 -->
-        <label class="block mb-2 font-semibold">Unit Number</label> <!-- #LINE 33 -->
-        <input type="text" id="unitNumber" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 34 -->
+        <label class="block mb-2 font-semibold">Owner Name</label>
+        <input type="text" id="ownerName" class="w-full border p-2 rounded mb-4" />
 
-        <!-- Owner Name --> <!-- #LINE 35 -->
-        <label class="block mb-2 font-semibold">Owner Name</label> <!-- #LINE 36 -->
-        <input type="text" id="ownerName" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 37 -->
+        <label class="block mb-2 font-semibold">Target Completion</label>
+        <input type="date" id="completionDate" class="w-full border p-2 rounded mb-4" />
 
-        <!-- Target Completion Date --> <!-- #LINE 38 -->
-        <label class="block mb-2 font-semibold">Target Completion</label> <!-- #LINE 39 -->
-        <input type="date" id="completionDate" class="w-full border p-2 rounded mb-4" /> <!-- #LINE 40 -->
-
-        <!-- Add Task Button --> <!-- #LINE 41 -->
         <button id="addTaskBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-4">+ Add Task</button>
 
+        <div id="taskList"></div>
 
-        <!-- Task List Container --> <!-- #LINE 43 -->
-        <div id="taskList"></div> <!-- #LINE 44 -->
+        <p class="font-bold mt-4">Estimated Total: <span id="totalEstimate">$0.00</span></p>
 
-        <!-- Estimated Total --> <!-- #LINE 45 -->
-        <p class="font-bold mt-4">Estimated Total: <span id="totalEstimate">$0.00</span></p> <!-- #LINE 46 -->
-
-        <!-- Submit Button --> <!-- #LINE 47 -->
         <button id="saveProjectBtn" class="bg-green-600 text-white px-4 py-2 rounded mt-4">Submit for Approval</button>
+      </div>
+    </div>
+  </div>
 
+  <!-- Login (simple) -->
+  <main class="card" style="max-width:420px;margin:auto">
+    <h1>TurnFlow Login</h1>
+    <form id="loginForm">
+      <label>Email<br><input id="email" type="email" required></label>
+      <label>Password<br><input id="password" type="password" required></label>
+      <button type="submit">Sign In</button>
+      <p id="err" style="color:#b00020"></p>
+    </form>
+  </main>
 
-      </div> <!-- #LINE 49 -->
-    </div> <!-- #LINE 50 -->
+  <!-- Firebase wiring (single source of truth) -->
+  <script type="module" src="./js/firebase-config.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+  <script type="module">
+    import { login, watchAuth } from "./js/auth.js";
+    watchAuth(true); // after sign-in, redirect by role
 
-  </div> <!-- #LINE 51 -->
+    const form = document.getElementById("loginForm");
+    const email = document.getElementById("email");
+    const password = document.getElementById("password");
+    const err = document.getElementById("err");
 
-</body> <!-- #LINE 53 -->
-</html> <!-- #LINE 54 -->
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault(); err.textContent = "";
+      try { await login(email.value.trim(), password.value); }
+      catch (ex) { err.textContent = ex.message; }
+    });
+  </script>
+</body>
+</html>
