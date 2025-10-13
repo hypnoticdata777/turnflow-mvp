@@ -2,25 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TurnFlow — Login</title>
-
-  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
-    /* Small helpers that work with the CDN (no @apply) */
     .tf-card { max-width: 28rem; }
     .tf-input {
       width: 100%;
-      border: 1px solid #e5e7eb;      /* tailwind: border-gray-200 */
-      border-radius: 0.5rem;          /* tailwind: rounded */
-      padding: 0.5rem 0.75rem;        /* tailwind: px-3 py-2 */
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      padding: 0.5rem 0.75rem;
     }
     .tf-btn {
       width: 100%;
-      border-radius: 0.75rem;         /* tailwind: rounded-xl */
-      padding: 0.5rem 0;              /* tailwind: py-2 */
+      border-radius: 0.75rem;
+      padding: 0.5rem 0;
       color: #fff;
       background: #000;
     }
@@ -28,8 +24,6 @@
 </head>
 
 <body class="min-h-screen grid place-items-center bg-gray-50">
-
-  <!-- LOGIN CARD -->
   <div class="tf-card w-full bg-white p-8 rounded-2xl shadow">
     <div class="mb-6 text-center">
       <h1 class="text-2xl font-bold">TurnFlow™</h1>
@@ -38,128 +32,14 @@
 
     <form id="loginForm" class="space-y-4">
       <input id="email" class="tf-input" type="email" placeholder="Email" required>
-      <input id="password"  class="tf-input" type="password" placeholder="Password" required>
+      <input id="password" class="tf-input" type="password" placeholder="Password" required>
       <button class="tf-btn" type="submit">Sign in</button>
     </form>
 
     <p id="errorMessage" class="text-red-600 text-sm mt-3 text-center"></p>
   </div>
-
-  <!-- 
-    ====================================================================
-    ALL JAVASCRIPT IS NOW IN THIS ONE SCRIPT BLOCK
-    ====================================================================
-  -->
-  <script type="module">
-    // Step 1: Import Firebase services
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-
-    // Step 2: Your Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyBiruaGA7s7ggSKZpdglU-5zDnpcofpQoM",
-      authDomain: "turnflow-app.firebaseapp.com",
-      projectId: "turnflow-app",
-      storageBucket: "turnflow-app.appspot.com",
-      messagingSenderId: "183972548936",
-      appId: "1:183972548936:web:23257f5d6273a7c1bbe37d"
-    };
-
-    // Step 3: Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app, "default");
-
-    // ==================================================================
-    // SHARED HELPER FUNCTIONS
-    // ==================================================================
-    const ROLES = { tech: "tech", pm: "pm", client: "client", admin: "admin" };
-
-    function go(page) {
-      const newUrl = new URL(page, window.location.origin).href;
-      if (window.location.href !== newUrl) {
-          window.location.href = page;
-      }
-    }
-
-    async function getUserRole(uid) {
-      // This is the function that was failing due to the race condition
-      const userDocRef = doc(db, "users", uid);
-      const userDocSnap = await getDoc(userDocRef);
-      if (!userDocSnap.exists()) return null;
-      return userDocSnap.data()?.role || null;
-    }
-
-    function roleHome(role) {
-      switch (role) {
-        case ROLES.tech: return "technician.html";
-        default: return "dashboard.html"; // Default for pm, client, admin
-      }
-    }
-
-    // ==================================================================
-    // NEW, ROBUST LOGIN LOGIC
-    // ==================================================================
-    const loginForm = document.getElementById('loginForm');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const errorMessage = document.getElementById('errorMessage');
-
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      errorMessage.textContent = '';
-
-      const email = emailInput.value.trim();
-      const password = passwordInput.value.trim();
-
-      try {
-        // --- STEP 1: Await the sign-in and get the user credentials ---
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        if (!user) {
-          throw new Error("Login succeeded but no user object was returned.");
-        }
-
-        // --- STEP 2: Await the role lookup using the confirmed user UID ---
-        const role = await getUserRole(user.uid);
-
-        if (!role) {
-          errorMessage.textContent = 'Login successful, but your user role could not be found.';
-          await signOut(auth); // Sign out the user for security
-          return;
-        }
-        
-        // --- STEP 3: Redirect to the correct page ---
-        go(roleHome(role));
-
-      } catch (error) {
-        console.error("Login process failed:", error);
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-            errorMessage.textContent = 'Invalid email or password.';
-        } else {
-            // This is where the "insufficient permissions" error was appearing
-            errorMessage.textContent = 'An error occurred. Please try again.';
-        }
-      }
-    });
-
-
-    // ==================================================================
-    // AUTH STATE LISTENER (for page reloads and protecting pages)
-    // ==================================================================
-    onAuthStateChanged(auth, (user) => {
-        // This listener is now only for handling users who are ALREADY logged in
-        // when they visit the page. The initial login is handled above.
-        const isLoginPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/';
-        if (user && isLoginPage) {
-            console.log("User is already logged in, attempting to redirect...");
-            getUserRole(user.uid).then(role => {
-                if (role) go(roleHome(role));
-            });
-        }
-    });
-  </script>
+  
+  <script type="module" src="public/js/firebase-config.js"></script>
+  <script type="module" src="public/js/auth.js"></script>
 </body>
 </html>

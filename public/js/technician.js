@@ -1,18 +1,19 @@
-// /js/technician.js
-import { app, auth } from "./auth.js";
+// public/js/technician.js
+
+// ✅ UPDATED: Import core services from the correct config file.
+import { app, auth, db } from './firebase-config.js'; 
 import {
   getStorage, ref, uploadBytesResumable, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
 import {
-  getFirestore, collection, addDoc, serverTimestamp,
-  query, getDocs
+  collection, addDoc, serverTimestamp, query, getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 
 const storage = getStorage(app);
-const db = getFirestore(app);
+// ❌ REMOVED: `const db = getFirestore(app);` because `db` is now imported directly.
 
-// quick helpers
+// Quick helpers
 const $ = (id) => document.getElementById(id);
 const prog = $("prog");
 const statusEl = $("status");
@@ -74,7 +75,7 @@ async function loadGallery(projectId, taskId) {
   gallery.innerHTML = items.length ? items.join("") : "<p>No photos yet.</p>";
 }
 
-// wire buttons
+// Wire buttons
 document.querySelectorAll(".uploadBtn").forEach((btn) => {
   btn.addEventListener("click", async () => {
     try { await upload(btn.dataset.type); }
@@ -82,7 +83,7 @@ document.querySelectorAll(".uploadBtn").forEach((btn) => {
   });
 });
 
-// refresh gallery when IDs change
+// Refresh gallery when IDs change
 ["projectId", "taskId"].forEach((id) => {
   $(id).addEventListener("change", () => {
     const projectId = $("projectId").value.trim();

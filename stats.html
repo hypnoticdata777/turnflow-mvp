@@ -2,33 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Project Statistics</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="script.js" defer></script>
+  <script src="public/js/script.js" defer></script>
 </head>
 
 <body class="bg-gray-100">
   <div class="flex">
-    <!-- Sidebar -->
-    <div class="w-64 bg-gray-800 text-white h-screen p-4">
-      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
-<ul>
-  <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
-  <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
-  <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
-  <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
-  <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
-  <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
-  <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
-  <li class="mb-3"><a href="technician.html" class="hover:text-green-400">🛠️ Technician</a></li>
 
-</ul>
+    <div id="sidebar-container"></div>
 
-    </div>
-
-    <!-- Main Content -->
     <div class="flex-1 p-6">
       <h1 class="text-3xl font-bold mb-6">📊 Project Statistics</h1>
 

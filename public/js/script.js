@@ -1,14 +1,11 @@
-// ============================
+// ===================================================
 // TurnFlow™ Main Script
-// ============================
+// ===================================================
 
-// #LINE 1 – Global Variables
+// --- Global Variables ---
 let taskCount = 0;
 
-/* ============================================================
-   CHECKPOINT 2 – Status Helpers (added, NOT used yet)
-   Safe to keep; no behavior changes until we call them later.
-============================================================ */
+// --- Utility & Status Helper Functions ---
 function tf_isValidDate(d) { return d instanceof Date && !isNaN(d); }
 
 function tf_parseDate(value) {
@@ -21,52 +18,30 @@ function tf_parseDate(value) {
 // Returns one of: 'completed' | 'overdue' | 'blocked' | 'inprogress' | 'open'
 function tf_getTaskStatus(task) {
   const now = new Date();
-  const completed = !!task?.completed;
-  const blocked = !!task?.blocked;     // optional field; fine if undefined
-  const start = tf_parseDate(task?.startTime);
-  const end   = tf_parseDate(task?.endTime);
-  const due   = tf_parseDate(task?.dueDate);
-
-  if (completed) return "completed";
-  if (blocked)   return "blocked";
+  if (task?.completed) return "completed";
+  if (task?.blocked) return "blocked";
+  const due = tf_parseDate(task?.dueDate);
   if (due && due < now) return "overdue";
-  if (start && !end)    return "inprogress";
-  return "open"; // aligns with your current "Pending" vibe
+  const start = tf_parseDate(task?.startTime);
+  if (start && !task?.endTime) return "inprogress";
+  return "open";
 }
 
 function tf_statusLabel(key) {
-  switch (key) {
-    case "completed":  return "Completed";
-    case "overdue":    return "Overdue";
-    case "blocked":    return "Blocked";
-    case "inprogress": return "In Progress";
-    default:           return "Pending";
-  }
-}
-// ============================
-
-// #LINE 5 – Load Editing Project if Exists
-const editingProject = JSON.parse(localStorage.getItem("editing_project"));
-if (editingProject) {
-  document.getElementById("projectName").value = editingProject.projectName;
-  document.getElementById("propertyAddress").value = editingProject.address;
-  document.getElementById("unitNumber").value = editingProject.unit;
-  document.getElementById("ownerName").value = editingProject.owner;
-  document.getElementById("completionDate").value = editingProject.date;
-
-  editingProject.tasks.forEach((task) => {
-    taskCount++;
-    const taskHTML = createTaskHTML(taskCount, task);
-    document.getElementById("taskList").insertAdjacentHTML("beforeend", taskHTML);
-  });
-
-  attachLiveCalculation();
-  calculateTotal();
-  localStorage.removeItem("editing_project");
+  const labels = {
+    completed: "Completed",
+    overdue: "Overdue",
+    blocked: "Blocked",
+    inprogress: "In Progress",
+    open: "Pending"
+  };
+  return labels[key] || "Pending";
 }
 
-// ============================
-// #LINE 25 – Create Task HTML Function
+
+// --- Project & Task Functions ---
+
+// Creates the HTML for a single task form
 function createTaskHTML(id, task = { name: "", hours: "", rate: "", material: "" }) {
   return `
     <div class="p-4 border rounded bg-gray-50 mb-3" id="task-${id}">
@@ -83,8 +58,7 @@ function createTaskHTML(id, task = { name: "", hours: "", rate: "", material: ""
   `;
 }
 
-// ============================
-// #LINE 55 – Add Task Function
+// Adds a new task to the form
 function addTask() {
   taskCount++;
   const taskHTML = createTaskHTML(taskCount);
@@ -92,15 +66,13 @@ function addTask() {
   attachLiveCalculation();
 }
 
-// ============================
-// #LINE 65 – Attach Calculation Listeners
+// Attaches listeners to recalculate the total on input
 function attachLiveCalculation() {
   const inputs = document.querySelectorAll(".laborHours, .laborRate, .materialCost");
   inputs.forEach(input => input.addEventListener("input", calculateTotal));
 }
 
-// ============================
-// #LINE 72 – Calculate Total
+// Calculates the total estimate from all tasks on the page
 function calculateTotal() {
   let total = 0;
   document.querySelectorAll("#taskList > div").forEach(task => {
@@ -110,11 +82,9 @@ function calculateTotal() {
     total += (hours * rate) + materials;
   });
   document.getElementById("totalEstimate").textContent = `$${total.toFixed(2)}`;
-
 }
 
-// ============================
-// #LINE 90 – Save Project
+// Saves the project from the form to localStorage
 function saveProject() {
   const project = {
     id: Date.now(),
@@ -123,7 +93,7 @@ function saveProject() {
     unit: document.getElementById("unitNumber").value,
     owner: document.getElementById("ownerName").value,
     date: document.getElementById("completionDate").value,
-    status: "Pending Approval", // NEW FIELD
+    status: "Pending Approval",
     tasks: []
   };
 
@@ -144,8 +114,9 @@ function saveProject() {
   window.location.href = "dashboard.html";
 }
 
-// ============================
-// #LINE 120 – Dashboard Functions
+
+// --- Dashboard Action Functions ---
+
 function deleteProject(id) {
   let all = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
   all = all.filter((p) => p.id !== id);
@@ -157,7 +128,8 @@ function editProject(id) {
   const all = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
   const selected = all.find((p) => p.id === id);
   localStorage.setItem("editing_project", JSON.stringify(selected));
-  window.location.href = "index.html";
+  // ✅ BUG FIX: Redirect to the project form page, not the login page.
+  window.location.href = "new-project.html"; 
 }
 
 function viewProject(id) {
@@ -179,76 +151,8 @@ function markTaskComplete(projectId, taskIndex) {
   }
 }
 
-// ============================
-// =============================
-// Stats Logic (Fixed)
-// =============================
-if (document.getElementById("taskChart") || document.getElementById("costChart")) {
-  const allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
 
-  let completed = 0,
-      pending = 0,
-      costData = {};
-
-  allProjects.forEach((p) => {
-    let total = 0;
-
-    p.tasks.forEach(t => {
-      const hours = parseFloat(t.hours) || 0;
-      const rate = parseFloat(t.rate) || 0;
-      const materials = parseFloat(t.material) || 0;
-
-      if (t.completed) completed++;
-      else pending++;
-
-      total += (hours * rate) + materials;
-    });
-
-    costData[p.address] = (costData[p.address] || 0) + total;
-  });
-
-  // PIE CHART
-  if (document.getElementById("taskChart")) {
-    new Chart(document.getElementById("taskChart"), {
-      type: "pie",
-      data: {
-        labels: ["Completed", "Pending"],
-        datasets: [
-          {
-            data: [completed, pending],
-            backgroundColor: ["#22c55e", "#ef4444"]
-          }
-        ]
-      }
-    });
-  }
-
-  // BAR CHART
-  if (document.getElementById("costChart")) {
-    new Chart(document.getElementById("costChart"), {
-      type: "bar",
-      data: {
-        labels: Object.keys(costData),
-        datasets: [
-          {
-            label: "Total Cost",
-            data: Object.values(costData),
-            backgroundColor: "#3b82f6"
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        scales: { y: { beginAtZero: true } }
-      }
-    });
-  }
-}
-
-
-
-// ============================
-// #LINE 210 – Make Functions Global
+// --- Make Functions Globally Accessible for HTML `onclick` ---
 window.addTask = addTask;
 window.saveProject = saveProject;
 window.deleteProject = deleteProject;
@@ -256,51 +160,64 @@ window.editProject = editProject;
 window.viewProject = viewProject;
 window.markTaskComplete = markTaskComplete;
 window.tf_getTaskStatus = tf_getTaskStatus;
-window.tf_statusLabel   = tf_statusLabel;
+window.tf_statusLabel = tf_statusLabel;
 
-// ============================
-// #LINE 220 – Attach Events on DOMContentLoaded
+
+// ===================================================
+// Main Execution Block - Runs After Page Loads
+// ===================================================
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOM fully loaded.");
+  
+  // ✅ NEW: Load the reusable sidebar component into its placeholder
+  const sidebarContainer = document.getElementById('sidebar-container');
+  if (sidebarContainer) {
+    fetch('public/components/sidebar.html')
+      .then(response => response.text())
+      .then(data => {
+        sidebarContainer.innerHTML = data;
+      })
+      .catch(error => console.error('Error loading sidebar:', error));
+  }
 
-  // ✅ BUTTON EVENTS
+  // --- Logic for the "New Project" Page ---
   const addTaskBtn = document.getElementById("addTaskBtn");
   const saveProjectBtn = document.getElementById("saveProjectBtn");
+  if (addTaskBtn) addTaskBtn.addEventListener("click", addTask);
+  if (saveProjectBtn) saveProjectBtn.addEventListener("click", saveProject);
 
-  if (addTaskBtn) {
-    addTaskBtn.addEventListener("click", addTask);
-    console.log("addTaskBtn found ✅");
-  } else {
-    console.log("addTaskBtn not found ❌");
+  // Check if we are editing a project and populate the form
+  const editingProject = JSON.parse(localStorage.getItem("editing_project"));
+  if (editingProject && document.getElementById("projectName")) {
+    document.getElementById("projectName").value = editingProject.projectName;
+    document.getElementById("propertyAddress").value = editingProject.address;
+    document.getElementById("unitNumber").value = editingProject.unit;
+    document.getElementById("ownerName").value = editingProject.owner;
+    document.getElementById("completionDate").value = editingProject.date;
+
+    editingProject.tasks.forEach((task) => {
+      taskCount++;
+      const taskHTML = createTaskHTML(taskCount, task);
+      document.getElementById("taskList").insertAdjacentHTML("beforeend", taskHTML);
+    });
+
+    attachLiveCalculation();
+    calculateTotal();
+    localStorage.removeItem("editing_project");
   }
 
-  if (saveProjectBtn) {
-    saveProjectBtn.addEventListener("click", saveProject);
-    console.log("saveProjectBtn found ✅");
-  } else {
-    console.log("saveProjectBtn not found ❌");
-  }
-
-  // ✅ STATS LOGIC
+  // --- Logic for the "Stats" Page ---
   if (document.getElementById("taskChart") || document.getElementById("costChart")) {
-    console.log("Stats page detected, loading charts...");
-
     const allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
     let completed = 0, pending = 0, costData = {};
 
     allProjects.forEach((p) => {
-      let total = 0;
+      let totalCost = 0;
       p.tasks.forEach((t) => {
-        const hours = parseFloat(t.hours) || 0;
-        const rate = parseFloat(t.rate) || 0;
-        const materials = parseFloat(t.material) || 0;
-
         if (t.completed) completed++;
         else pending++;
-
-        total += (hours * rate) + materials;
+        totalCost += (t.hours * t.rate) + t.material;
       });
-      costData[p.address] = (costData[p.address] || 0) + total;
+      costData[p.address] = (costData[p.address] || 0) + totalCost;
     });
 
     // PIE CHART
@@ -327,6 +244,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
-
-
 

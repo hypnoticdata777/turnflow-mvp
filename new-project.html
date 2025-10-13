@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TurnFlow — New Project</title>
-
-  <base href="./">
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script src="public/js/script.js" defer></script>
 
-  <!-- Auth guard: allow only PM/Admin; others get redirected to their home -->
   <script type="module">
-    import { currentUser, getUserRole, roleHome } from './js/auth.js';
+    // ✅ UPDATED IMPORT PATH
+    import { currentUser, getUserRole, roleHome } from './public/js/auth.js';
 
     // Block until we know who you are
     (async () => {
@@ -31,16 +31,13 @@
 </head>
 
 <body class="bg-gray-100">
-  <div class="container">
-    <div class="flex" id="layout">
-      <aside id="sidebar" class="w-64 bg-gray-800 text-white h-screen p-4">
-        <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
-        <ul>
-          <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
-          <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
-          <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
-          <li class="mb-3"><a href="new-project.html" class="hover:text-green-400">➕ New Project</a></li>
-          <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
-          <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
-          <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
-          <li class="mb-3"><a href="technician.html" class="hover:text-green-400
+  <div class="flex">
+    
+    <div id="sidebar-container"></div>
+
+    <main class="flex-1 p-6">
+      </main>
+    
+  </div>
+</body>
+</html>

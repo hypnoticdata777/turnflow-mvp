@@ -29,7 +29,8 @@
   <pre id="out">Ready.</pre>
 
   <script type="module">
-    import { auth, db, currentUser } from './js/auth.js';
+    // ✅ UPDATED IMPORT PATH
+    import { auth, db, currentUser } from './public/js/auth.js';
     import { addDoc, collection, serverTimestamp }
       from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
@@ -47,12 +48,12 @@
       if (!auth.currentUser) { out.textContent = 'Please sign in first.'; return; }
 
       const payload = {
-        name:      document.getElementById('name').value.trim(),
-        address:   document.getElementById('address').value.trim(),
-        unit:      document.getElementById('unit').value.trim(),
-        ownerName: document.getElementById('owner').value.trim(),
-        targetDate:document.getElementById('date').value.trim(),
-        assignedTechId: auth.currentUser.uid,   // assign to current TECH user
+        name:       document.getElementById('name').value.trim(),
+        address:    document.getElementById('address').value.trim(),
+        unit:       document.getElementById('unit').value.trim(),
+        ownerName:  document.getElementById('owner').value.trim(),
+        targetDate: document.getElementById('date').value.trim(),
+        assignedTechId: auth.currentUser.uid,  // assign to current TECH user
         createdBy: auth.currentUser.uid,
         createdAt: serverTimestamp(),
         tasks: [{ id:'t1', title:'Replace toilet', status:'Pending' }]

@@ -1,76 +1,62 @@
-<!DOCTYPE html> <!-- #LINE 1 -->
-<html lang="en"> <!-- #LINE 2 -->
-<head> <!-- #LINE 3 -->
-  <meta charset="UTF-8" /> <!-- #LINE 4 -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <!-- #LINE 5 -->
-  <title>Project Estimate</title> <!-- #LINE 6 -->
-  <script src="https://cdn.tailwindcss.com"></script> <!-- #LINE 7 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> <!-- #LINE 8 -->
-</head> <!-- #LINE 9 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Estimate</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="public/js/script.js" defer></script>
+</head>
 
-<<body class="bg-gray-100">
+<body class="bg-gray-100">
   <div class="flex">
 
-    <!-- Sidebar -->
-    <div class="w-64 bg-gray-800 text-white h-screen p-4">
-      <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
-      <ul>
-        <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
-        <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
-        <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
-        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
-        <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
-        <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
-        <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
-        <li class="mb-3"><a href="technician.html" class="hover:text-green-400">🛠️ Technician</a></li>
+    <div id="sidebar-container"></div>
 
-      </ul>
-    </div>
-
-    <!-- Main Content -->
     <div class="flex-1 p-6">
       <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+        
+        <div id="projectInfo" class="mb-6 text-gray-700"></div>
 
+        <h2 class="text-2xl font-semibold mb-2">Tasks</h2>
+        <div id="taskSummary" class="space-y-4 text-gray-800"></div>
 
-    <!-- Project Info -->
-    <div id="projectInfo" class="mb-6 text-gray-700"></div> <!-- #LINE 13 -->
+        <div class="mt-6 text-xl font-bold">
+          Total Estimate: <span id="finalEstimate" class="text-green-600">$0.00</span>
+        </div>
 
-    <h2 class="text-2xl font-semibold mb-2">Tasks</h2> <!-- #LINE 14 -->
-    <div id="taskSummary" class="space-y-4 text-gray-800"></div> <!-- #LINE 15 -->
+        <button onclick="downloadPDF()" class="mt-6 bg-green-600 text-white px-4 py-2 rounded">
+          📄 Download PDF
+        </button>
 
-    <div class="mt-6 text-xl font-bold">
-      Total Estimate: <span id="finalEstimate" class="text-green-600">$0.00</span> <!-- #LINE 16 -->
+        <a href="dashboard.html" class="ml-3 bg-gray-600 text-white px-4 py-2 rounded">⬅ Back to Dashboard</a>
+      </div>
     </div>
-
-    <button onclick="downloadPDF()" class="mt-6 bg-green-600 text-white px-4 py-2 rounded">
-      📄 Download PDF
-    </button> <!-- #LINE 17 -->
-
-    <a href="dashboard.html" class="ml-3 bg-gray-600 text-white px-4 py-2 rounded">⬅ Back to Dashboard</a> <!-- #LINE 18 -->
-  </div> <!-- #LINE 19 -->
-
+  </div>
+    
   <script>
-    const { jsPDF } = window.jspdf; // #LINE 20
-    const projectData = JSON.parse(localStorage.getItem("turnflow_project")); // #LINE 21
-    const taskData = JSON.parse(localStorage.getItem("turnflow_tasks")); // #LINE 22
+    const { jsPDF } = window.jspdf;
+    const projectData = JSON.parse(localStorage.getItem("turnflow_project"));
+    const taskData = JSON.parse(localStorage.getItem("turnflow_tasks"));
 
-    const projectInfoDiv = document.getElementById("projectInfo"); // #LINE 23
-    const taskSummaryDiv = document.getElementById("taskSummary"); // #LINE 24
-    const finalEstimateSpan = document.getElementById("finalEstimate"); // #LINE 25
+    const projectInfoDiv = document.getElementById("projectInfo");
+    const taskSummaryDiv = document.getElementById("taskSummary");
+    const finalEstimateSpan = document.getElementById("finalEstimate");
 
-    if (projectData && taskData) { // #LINE 26
+    if (projectData && taskData) {
       projectInfoDiv.innerHTML = `
         <p><strong>Project:</strong> ${projectData.projectName}</p>
         <p><strong>Address:</strong> ${projectData.address}, Unit ${projectData.unit}</p>
         <p><strong>Owner:</strong> ${projectData.owner}</p>
         <p><strong>Target Completion:</strong> ${projectData.date}</p>
-      `; // #LINE 32
+      `;
 
-      let grandTotal = 0; // #LINE 33
+      let grandTotal = 0;
 
-      taskData.forEach((task, index) => { // #LINE 34
-        const cost = (task.hours * task.rate) + task.material; // #LINE 35
-        grandTotal += cost; // #LINE 36
+      taskData.forEach((task, index) => {
+        const cost = (task.hours * task.rate) + task.material;
+        grandTotal += cost;
 
         taskSummaryDiv.innerHTML += `
           <div class="border p-4 rounded bg-gray-50">
@@ -79,40 +65,37 @@
             <p><strong>Materials:</strong> $${task.material.toFixed(2)}</p>
             <p><strong>Total:</strong> $${cost.toFixed(2)}</p>
           </div>
-        `; // #LINE 44
+        `;
       });
 
-      finalEstimateSpan.textContent = `$${grandTotal.toFixed(2)}`; // #LINE 45
+      finalEstimateSpan.textContent = `$${grandTotal.toFixed(2)}`;
     } else {
-      projectInfoDiv.innerHTML = `<p class="text-red-500">No project data found.</p>`; // #LINE 46
+      projectInfoDiv.innerHTML = `<p class="text-red-500">No project data found.</p>`;
     }
 
-    function downloadPDF() { // #LINE 47
-      if (!projectData || !taskData) return; // #LINE 48
-      const doc = new jsPDF(); // #LINE 49
+    function downloadPDF() {
+      if (!projectData || !taskData) return;
+      const doc = new jsPDF();
 
-      doc.setFontSize(16); // #LINE 50
-      doc.text("Turn Estimate Summary", 10, 10); // #LINE 51
-      doc.setFontSize(12); // #LINE 52
+      doc.setFontSize(16);
+      doc.text("Turn Estimate Summary", 10, 10);
+      doc.setFontSize(12);
 
-      doc.text(`Project: ${projectData.projectName}`, 10, 20); // #LINE 53
-      doc.text(`Address: ${projectData.address}, Unit ${projectData.unit}`, 10, 30); // #LINE 54
-      doc.text(`Owner: ${projectData.owner}`, 10, 40); // #LINE 55
-      doc.text(`Target Completion: ${projectData.date}`, 10, 50); // #LINE 56
+      doc.text(`Project: ${projectData.projectName}`, 10, 20);
+      doc.text(`Address: ${projectData.address}, Unit ${projectData.unit}`, 10, 30);
+      doc.text(`Owner: ${projectData.owner}`, 10, 40);
+      doc.text(`Target Completion: ${projectData.date}`, 10, 50);
 
-      let y = 70; // #LINE 57
-      taskData.forEach((task, i) => { // #LINE 58
-        doc.text(`Task ${i + 1}: ${task.name}`, 10, y); y += 10; // #LINE 59
-        doc.text(`Labor: ${task.hours} hrs @ $${task.rate}/hr`, 10, y); y += 10; // #LINE 60
-        doc.text(`Materials: $${task.material}`, 10, y); y += 10; // #LINE 61
+      let y = 70;
+      taskData.forEach((task, i) => {
+        doc.text(`Task ${i + 1}: ${task.name}`, 10, y); y += 10;
+        doc.text(`Labor: ${task.hours} hrs @ $${task.rate}/hr`, 10, y); y += 10;
+        doc.text(`Materials: $${task.material}`, 10, y); y += 10;
       });
 
-      doc.text(`Total Estimate: $${finalEstimateSpan.textContent}`, 10, y + 10); // #LINE 62
-      doc.save("estimate.pdf"); // #LINE 63
-    } // #LINE 64
-  </script> <!-- #LINE 65 -->
-    </div> <!-- close flex-1 -->
-  </div> <!-- close flex -->
+      doc.text(`Total Estimate: $${finalEstimateSpan.textContent}`, 10, y + 10);
+      doc.save("estimate.pdf");
+    }
+  </script>
 </body>
 </html>
-
