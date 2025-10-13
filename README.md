@@ -1,30 +1,36 @@
 # Turnflow MVP
 
-A brief one-sentence description of what Turnflow does.
+Turnflow is a web application designed to help manage and track property turnover projects, from creating estimates to assigning tasks to technicians.
 
-## ✨ Features
+---
 
-* User authentication with Firebase Auth
-* Project and contact management
-* Real-time data updates with Firestore
-* (Add any other cool features here)
+### ✨ Features
 
-## 🛠️ Tech Stack
+* **User Authentication:** Secure login for different user roles (PMs, Technicians).
+* **Project Management:** Create, edit, and delete turnover projects.
+* **Task Tracking:** Add tasks with cost estimates (labor, materials) to each project.
+* **Status Dashboards:** View projects based on their status (Pending Approval, Pending Send).
+* **Technician View:** A dedicated dashboard for technicians to view their assigned projects and upload photos.
+* **Data Backup:** Simple JSON backup and restore functionality for all project data.
+
+---
+
+### 🛠️ Tech Stack
 
 * **Frontend:** HTML5, CSS3, Vanilla JavaScript
-* **Styling:** Tailwind CSS
-* **Backend:** Firebase (Authentication, Firestore, Hosting)
+* **Styling:** Tailwind CSS (via CDN)
+* **Backend & Database:** Firebase (Authentication, Firestore, Storage)
+* **Charting:** Chart.js for project statistics
 
-## 🚀 Getting Started
+---
 
-Instructions on how someone else could run your project.
+### 🚀 Getting Started
+
+To run this project locally:
 
 1.  Clone the repository:
-    `git clone https://github.com/your-username/turnflow.git`
-2.  Create a `firebase-config.js` file in the root directory and add your Firebase project credentials.
-3.  Open `index.html` in your browser to start.
+    `git clone https://github.com/your-username/turnflow-mvp.git`
 
-## 展望 Future Goals
+2.  Create a `public/js/firebase-config.js` file and add your own Firebase project credentials.
 
-* Implement user roles and permissions.
-* Build a reporting and stats dashboard.
+3.  Open the `index.html` file in your browser to access the login page.
