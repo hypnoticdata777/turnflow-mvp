@@ -1,7 +1,6 @@
 {
   "projects": {
-    "default": "turnflow-app",
-    "prod": "turnflow-app"
+    "default": "turnflow-app"
   },
   "targets": {},
   "etags": {}

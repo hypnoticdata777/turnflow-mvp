@@ -28,9 +28,10 @@
         <div class="text-sm flex items-center gap-3">
           <span class="text-gray-600">${u?.email ?? ''}</span>
           <button id="tf-logout" class="px-3 py-1 rounded bg-gray-800 text-white">Logout</button>
-        </div>`;
+        </div>
+      `;
       document.body.prepend(hdr);
-      document.getElementById('tf-logout').addEventListener('click', async () => { await logout(); });
+      document.getElementById('tf-logout')?.addEventListener('click', async () => { await logout(); });
     });
   </script>
 
@@ -52,7 +53,6 @@
 
     <!-- Main Content -->
     <main class="flex-1 p-6">
-
       <h1 class="text-3xl font-bold mb-6">🛠 Technician Dashboard</h1>
 
       <!-- 3) Projects from Firestore (cloud, not localStorage) -->
@@ -63,7 +63,7 @@
         </div>
       </section>
 
-      <!-- 4) Your existing Uploader UI (kept as-is; we’ll wire to Storage next) -->
+      <!-- 4) Uploader UI (kept as-is) -->
       <section class="max-w-3xl bg-white p-4 rounded shadow">
         <h2 class="text-xl font-semibold mb-4">Upload Photos</h2>
 
@@ -121,7 +121,11 @@
 
     async function loadProjectsForTech() {
       listContainer.innerHTML = '<p class="text-gray-500">Loading…</p>';
-      const q = query(collection(db, 'projects'), where('assignedTechId', '==', u.uid));
+
+      const q = query(
+        collection(db, 'projects'),
+        where('assignedTechId', '==', u.uid)
+      );
       const snap = await getDocs(q);
 
       if (snap.empty) {
@@ -144,7 +148,8 @@
             <ul class="list-disc ml-5">
               ${(p.tasks || []).map(t => `<li>${t.title} — <span class="text-gray-600">${t.status}</span></li>`).join('')}
             </ul>
-          </div>`;
+          </div>
+        `;
         listContainer.appendChild(card);
       });
     }

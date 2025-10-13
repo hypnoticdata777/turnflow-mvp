@@ -5,27 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TurnFlow — Login</title>
 
-  <!-- Ensures relative links resolve from this folder in any hosting path -->
+  <!-- Ensure relative links resolve from this folder in any hosting path -->
   <base href="./">
 
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- If already logged in, auto-redirect to their role home -->
-  <script type="module">
-    import { watchAuth } from './js/auth.js';
-    watchAuth(true);
-  </script>
-
   <style>
-    /* tiny polish */
-    .tf-card { max-width: 28rem }
-    .tf-input { @apply w-full border rounded px-3 py-2; }
-    .tf-btn   { @apply w-full rounded-xl py-2 text-white; }
+    /* Small helpers that work with the CDN (no @apply) */
+    .tf-card { max-width: 28rem; }
+    .tf-input {
+      width: 100%;
+      border: 1px solid #e5e7eb;      /* tailwind: border-gray-200 */
+      border-radius: 0.5rem;          /* tailwind: rounded */
+      padding: 0.5rem 0.75rem;        /* tailwind: px-3 py-2 */
+    }
+    .tf-btn {
+      width: 100%;
+      border-radius: 0.75rem;         /* tailwind: rounded-xl */
+      padding: 0.5rem 0;              /* tailwind: py-2 */
+      color: #fff;
+      background: #000;
+    }
   </style>
 </head>
+
 <body class="min-h-screen grid place-items-center bg-gray-50">
 
-  <!-- LOGIN ONLY -->
+  <!-- LOGIN CARD -->
   <div class="tf-card w-full bg-white p-8 rounded-2xl shadow">
     <div class="mb-6 text-center">
       <h1 class="text-2xl font-bold">TurnFlow™</h1>
@@ -33,35 +40,71 @@
     </div>
 
     <form id="loginForm" class="space-y-4">
-      <input class="tf-input" type="email" placeholder="Email" required id="email">
-      <input class="tf-input" type="password" placeholder="Password" required id="pass">
-      <button class="tf-btn bg-black">Sign in</button>
+      <input id="email" class="tf-input" type="email" placeholder="Email" required>
+      <input id="pass"  class="tf-input" type="password" placeholder="Password" required>
+      <button class="tf-btn" type="submit">Sign in</button>
     </form>
 
     <p id="err" class="text-red-600 text-sm mt-3"></p>
   </div>
 
-  <!-- Firebase auth wiring -->
-  <!-- NOTE: You don't need to import firebase-config.js here because js/auth.js already imports it. -->
+  <!-- Firebase Auth Logic -->
   <script type="module">
-    import { signIn, currentUser, getUserRole, roleHome } from './js/auth.js';
+    import {
+      watchAuth,
+      signIn,
+      getUserRole,
+      roleHome,
+      auth
+    } from './js/auth.js';
+    import { onAuthStateChanged } 
+      from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 
-    const form = document.getElementById('loginForm');
+    // Automatically redirect if already logged in
+    watchAuth(true);
+
+    const form  = document.getElementById('loginForm');
     const errEl = document.getElementById('err');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errEl.textContent = '';
+
       const email = document.getElementById('email').value.trim();
       const pass  = document.getElementById('pass').value.trim();
 
       try {
+        // --- STEP 1: Attempt login ---
         await signIn(email, pass);
-        const u = currentUser();
-        const role = await getUserRole(u.uid);
-        location.replace(roleHome(role)); // sends tech->technician.html, etc.
+        console.log("Login successful — waiting for auth state...");
+
+        // --- STEP 2: Wait for confirmed auth state ---
+        onAuthStateChanged(auth, async (user) => {
+          if (user) {
+            try {
+              // Force-refresh the token so Firestore rules see it immediately
+              await user.getIdToken(true);
+
+              const role = await getUserRole(user.uid);
+              if (!role) {
+                errEl.textContent = "User not found in database.";
+                return;
+              }
+
+              console.log("Routing user by role:", role);
+              location.replace(roleHome(role));
+            } catch (firestoreErr) {
+              console.error("Firestore read failed:", firestoreErr);
+              errEl.textContent = "Missing or insufficient permissions.";
+            }
+          } else {
+            console.log("Auth observer: no user yet or signed out.");
+          }
+        });
+
       } catch (err) {
-        errEl.textContent = err.message || 'Login failed';
+        console.error("Login failed:", err);
+        errEl.textContent = err?.message || 'Login failed';
       }
     });
   </script>

@@ -1,33 +1,38 @@
 // /js/auth.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-import {
-  getFirestore, doc, getDoc
-} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { firebaseAppConfig } from "./firebase-config.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } 
+  from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+import { getFirestore, doc, getDoc } 
+  from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { app } from "./firebase-config.js"; // ✅ Import the already-initialized app
 
-/* ===== Firebase core ===== */
-export const app  = initializeApp(firebaseAppConfig);
+// Use the shared app
 export const auth = getAuth(app);
-export const db   = getFirestore(app);
+export const db = getFirestore(app);
+
 
 /* ===== Roles ===== */
-export const ROLES = { admin: "admin", tech: "tech", pm: "pm", client: "client" };
+export const ROLES = {
+  admin: "admin",
+  tech: "tech",
+  pm: "pm",
+  client: "client",
+};
 
 /* ===== Path helpers (robust for root or subfolder hosting) ===== */
-const BASE = document.querySelector("base")?.getAttribute("href")
-  ?? location.pathname.replace(/[^/]+$/, "");   // current folder path, e.g. /turnflow-mvp/
+const BASE =
+  document.querySelector("base")?.getAttribute("href") ??
+  location.pathname.replace(/[^/]+$/, ""); // current folder path, e.g. /turnflow-mvp/
 
-function go(page) { location.replace(BASE + page); }
+function go(page) {
+  location.replace(BASE + page);
+}
 
 /* ===== Role lookup (Firestore: users/{uid}.role) ===== */
 export async function getUserRole(uid) {
   const snap = await getDoc(doc(db, "users", uid));
   if (!snap.exists()) return null;
   const role = snap.data()?.role;
-  return typeof role === "string" ? role : null; // be strict; avoid silent fallbacks
+  return typeof role === "string" ? role : null;
 }
 
 /* ===== Auth state watcher =====
@@ -39,7 +44,7 @@ export function watchAuth(redirectByRole = false) {
     // Build absolute paths for protected pages using the document base
     const protectedPaths = new Set([
       new URL("technician.html", document.baseURI).pathname,
-      new URL("dashboard.html",  document.baseURI).pathname
+      new URL("dashboard.html", document.baseURI).pathname,
     ]);
     const here = location.pathname;
 
@@ -56,26 +61,39 @@ export function watchAuth(redirectByRole = false) {
 }
 
 /* ===== Session helpers ===== */
-export function currentUser() { return auth.currentUser; }
+export function currentUser() {
+  return auth.currentUser;
+}
 
 /* Map a role to a landing page (returns absolute path using BASE) */
 export function roleHome(role) {
   switch (role) {
-    case ROLES.tech:   return BASE + "technician.html";
-    case ROLES.pm:     return BASE + "dashboard.html";   // update when pm.html exists
-    case ROLES.client: return BASE + "dashboard.html";   // update when client.html exists
-    case ROLES.admin:  return BASE + "dashboard.html";   // update when admin.html exists
-    default:           return BASE + "index.html";
+    case ROLES.tech:
+      return BASE + "technician.html";
+    case ROLES.pm:
+      return BASE + "dashboard.html"; // update when pm.html exists
+    case ROLES.client:
+      return BASE + "dashboard.html"; // update when client.html exists
+    case ROLES.admin:
+      return BASE + "dashboard.html"; // update when admin.html exists
+    default:
+      return BASE + "index.html";
   }
 }
 
 /* Require a role on a page; bounce if missing/wrong */
 export async function requireRole(expectedRole) {
   const user = auth.currentUser;
-  if (!user) { go("index.html"); return; }
+  if (!user) {
+    go("index.html");
+    return;
+  }
 
   const role = await getUserRole(user.uid);
-  if (!role) { go("index.html"); return; }
+  if (!role) {
+    go("index.html");
+    return;
+  }
 
   if (expectedRole && role !== expectedRole) {
     location.replace(roleHome(role));
