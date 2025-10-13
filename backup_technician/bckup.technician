@@ -5,35 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Technician Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <base href="./">
+  <script src="script.js" defer></script>
 </head>
 
 <body class="bg-gray-100">
-
-  <!-- 1) Require TECH before rendering anything -->
-  <script type="module">
-    import { requireRole } from './js/auth.js';
-    await requireRole('tech');          // if not tech or not logged in -> goes to index.html
-  </script>
-
-  <!-- 2) Persistent header (email + Logout) injected on every page -->
-  <script type="module">
-    import { currentUser, logout } from './js/auth.js';
-    document.addEventListener('DOMContentLoaded', () => {
-      const u = currentUser();
-      const hdr = document.createElement('header');
-      hdr.className = 'w-full bg-white border-b p-3 flex items-center justify-between sticky top-0 z-50';
-      hdr.innerHTML = `
-        <div class="font-semibold">TurnFlow™ — Technician</div>
-        <div class="text-sm flex items-center gap-3">
-          <span class="text-gray-600">${u?.email ?? ''}</span>
-          <button id="tf-logout" class="px-3 py-1 rounded bg-gray-800 text-white">Logout</button>
-        </div>`;
-      document.body.prepend(hdr);
-      document.getElementById('tf-logout').addEventListener('click', async () => { await logout(); });
-    });
-  </script>
-
   <div class="flex">
     <!-- Sidebar -->
     <aside class="w-64 bg-gray-800 text-white h-screen p-4">
@@ -42,7 +17,7 @@
         <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
         <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
         <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
-        <li class="mb-3"><a href="new-project.html" class="hover:text-green-400">➕ New Project</a></li>
+        <li class="mb-3"><a href="index.html" class="hover:text-green-400">➕ New Project</a></li>
         <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
         <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
         <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
@@ -52,18 +27,13 @@
 
     <!-- Main Content -->
     <main class="flex-1 p-6">
+      <header class="flex justify-end mb-4">
+        <button id="logoutBtn" class="px-3 py-1 border rounded">Logout</button>
+      </header>
 
       <h1 class="text-3xl font-bold mb-6">🛠 Technician Dashboard</h1>
 
-      <!-- 3) Projects from Firestore (cloud, not localStorage) -->
-      <section class="max-w-5xl bg-white p-4 rounded shadow mb-6">
-        <h2 class="text-xl font-semibold mb-3">My Projects</h2>
-        <div id="tech-projects" class="space-y-4">
-          <p class="text-gray-500">Loading…</p>
-        </div>
-      </section>
-
-      <!-- 4) Your existing Uploader UI (kept as-is; we’ll wire to Storage next) -->
+      <!-- Uploader UI (matches /js/technician.js selectors) -->
       <section class="max-w-3xl bg-white p-4 rounded shadow">
         <h2 class="text-xl font-semibold mb-4">Upload Photos</h2>
 
@@ -106,50 +76,14 @@
     </main>
   </div>
 
-  <!-- 5) Firebase wiring (auth.js already imports firebase-config) -->
+  <!-- Auth + Tech uploader (single source of truth) -->
+  <script type="module" src="./js/firebase-config.js"></script>
   <script type="module" src="./js/auth.js"></script>
   <script type="module" src="./js/technician.js"></script>
-
-  <!-- 6) Firestore loader for the Projects section -->
   <script type="module">
-    import { db, currentUser } from './js/auth.js';
-    import { collection, query, where, getDocs }
-      from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
-
-    const u = currentUser();
-    const listContainer = document.getElementById('tech-projects');
-
-    async function loadProjectsForTech() {
-      listContainer.innerHTML = '<p class="text-gray-500">Loading…</p>';
-      const q = query(collection(db, 'projects'), where('assignedTechId', '==', u.uid));
-      const snap = await getDocs(q);
-
-      if (snap.empty) {
-        listContainer.innerHTML = '<p class="text-gray-500">No projects available.</p>';
-        return;
-      }
-
-      listContainer.innerHTML = '';
-      snap.forEach(docSnap => {
-        const p = docSnap.data();
-        const card = document.createElement('div');
-        card.className = 'bg-white border rounded-xl p-4 shadow-sm';
-        card.innerHTML = `
-          <h3 class="text-lg font-semibold mb-1">${p.name || 'Project'}</h3>
-          <p class="text-sm"><strong>Address:</strong> ${p.address || ''} ${p.unit ? ', Unit ' + p.unit : ''}</p>
-          <p class="text-sm"><strong>Owner:</strong> ${p.ownerName || ''}</p>
-          <p class="text-sm mb-2"><strong>Target Date:</strong> ${p.targetDate || ''}</p>
-          <div class="mt-2">
-            <strong>Tasks:</strong>
-            <ul class="list-disc ml-5">
-              ${(p.tasks || []).map(t => `<li>${t.title} — <span class="text-gray-600">${t.status}</span></li>`).join('')}
-            </ul>
-          </div>`;
-        listContainer.appendChild(card);
-      });
-    }
-
-    loadProjectsForTech();
+    import { watchAuth, logout } from "./js/auth.js";
+    watchAuth(); // send guests to index.html
+    document.getElementById("logoutBtn")?.addEventListener("click", logout);
   </script>
 </body>
 </html>

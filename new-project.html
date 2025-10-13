@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TurnFlow — New Project</title>
+
+  <base href="./">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Auth guard: allow only PM/Admin; others get redirected to their home -->
+  <script type="module">
+    import { currentUser, getUserRole, roleHome } from './js/auth.js';
+
+    // Block until we know who you are
+    (async () => {
+      const u = currentUser();
+      if (!u) { location.replace('index.html'); return; }
+
+      const role = await getUserRole(u.uid);
+      if (!role) { location.replace('index.html'); return; }
+
+      // only PM/Admin can create projects
+      if (role !== 'pm' && role !== 'admin') {
+        location.replace(roleHome(role));
+        return;
+      }
+      // else, let the page render
+    })();
+  </script>
+</head>
+
+<body class="bg-gray-100">
+  <div class="container">
+    <div class="flex" id="layout">
+      <aside id="sidebar" class="w-64 bg-gray-800 text-white h-screen p-4">
+        <h2 class="text-2xl font-bold mb-6">TurnFlow™</h2>
+        <ul>
+          <li class="mb-3"><a href="dashboard.html" class="hover:text-green-400">📋 Dashboard</a></li>
+          <li class="mb-3"><a href="pending-approval.html" class="hover:text-green-400">⏳ Pending Approval</a></li>
+          <li class="mb-3"><a href="pending-send.html" class="hover:text-green-400">📤 Pending to Send</a></li>
+          <li class="mb-3"><a href="new-project.html" class="hover:text-green-400">➕ New Project</a></li>
+          <li class="mb-3"><a href="contacts.html" class="hover:text-green-400">👥 Contacts</a></li>
+          <li class="mb-3"><a href="stats.html" class="hover:text-green-400">📊 Stats</a></li>
+          <li class="mb-3"><a href="backup.html" class="hover:text-green-400">💾 Backup</a></li>
+          <li class="mb-3"><a href="technician.html" class="hover:text-green-400

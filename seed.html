@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>TurnFlow — Seed</title>
+  <base href="./">
+  <style>
+    body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:24px}
+    pre{background:#111;color:#fff;padding:12px;border-radius:8px;white-space:pre-wrap}
+    button{padding:.5rem .75rem;border-radius:.5rem;border:1px solid #ddd;background:#111;color:#fff;cursor:pointer}
+    label{display:block;margin:.5rem 0 .25rem}
+    input{padding:.5rem;border:1px solid #ddd;border-radius:.5rem;width:320px}
+  </style>
+</head>
+<body>
+  <h1>Seed a sample project</h1>
+  <p>Log in first (as the <strong>technician</strong>), then open this page. We’ll create one project assigned to the current user.</p>
+
+  <div id="who"></div>
+
+  <h3>Project values (you can tweak):</h3>
+  <label> Name <input id="name" value="Move out - 1"></label>
+  <label> Address <input id="address" value="4563 N 51 Blv"></label>
+  <label> Unit <input id="unit" value="1"></label>
+  <label> Owner <input id="owner" value="Maria Felix"></label>
+  <label> Target Date <input id="date" value="2025-08-24"></label>
+
+  <p style="margin-top:12px"><button id="seedBtn">Create project</button></p>
+  <pre id="out">Ready.</pre>
+
+  <script type="module">
+    import { auth, db, currentUser } from './js/auth.js';
+    import { addDoc, collection, serverTimestamp }
+      from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+
+    const out = document.getElementById('out');
+    const who = document.getElementById('who');
+    const u = currentUser();
+
+    if (!u) {
+      who.innerHTML = '<b>Not signed in.</b> Open <a href="index.html">index.html</a>, sign in as the TECH account, then come back.';
+    } else {
+      who.textContent = `Signed in as: ${u.email} (uid: ${u.uid})`;
+    }
+
+    document.getElementById('seedBtn').addEventListener('click', async () => {
+      if (!auth.currentUser) { out.textContent = 'Please sign in first.'; return; }
+
+      const payload = {
+        name:      document.getElementById('name').value.trim(),
+        address:   document.getElementById('address').value.trim(),
+        unit:      document.getElementById('unit').value.trim(),
+        ownerName: document.getElementById('owner').value.trim(),
+        targetDate:document.getElementById('date').value.trim(),
+        assignedTechId: auth.currentUser.uid,   // assign to current TECH user
+        createdBy: auth.currentUser.uid,
+        createdAt: serverTimestamp(),
+        tasks: [{ id:'t1', title:'Replace toilet', status:'Pending' }]
+      };
+
+      try {
+        const docRef = await addDoc(collection(db, 'projects'), payload);
+        out.textContent = `Seeded OK. New doc id: ${docRef.id}\n\n${JSON.stringify(payload,null,2)}`;
+      } catch (e) {
+        out.textContent = 'Error: ' + (e.message || e);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -8,40 +8,86 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { firebaseAppConfig } from "./firebase-config.js";
 
-export const app = initializeApp(firebaseAppConfig);
+/* ===== Firebase core ===== */
+export const app  = initializeApp(firebaseAppConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db   = getFirestore(app);
 
-// read role from Firestore: users/{uid}.role
+/* ===== Roles ===== */
+export const ROLES = { admin: "admin", tech: "tech", pm: "pm", client: "client" };
+
+/* ===== Path helpers (robust for root or subfolder hosting) ===== */
+const BASE = document.querySelector("base")?.getAttribute("href")
+  ?? location.pathname.replace(/[^/]+$/, "");   // current folder path, e.g. /turnflow-mvp/
+
+function go(page) { location.replace(BASE + page); }
+
+/* ===== Role lookup (Firestore: users/{uid}.role) ===== */
 export async function getUserRole(uid) {
   const snap = await getDoc(doc(db, "users", uid));
-  return snap.exists() ? (snap.data().role || "tech") : null;
+  if (!snap.exists()) return null;
+  const role = snap.data()?.role;
+  return typeof role === "string" ? role : null; // be strict; avoid silent fallbacks
 }
 
-// Protect pages, and optionally redirect by role after login
+/* ===== Auth state watcher =====
+   - Redirects logged-out users away from protected pages
+   - Optionally (redirectByRole=true) sends logged-in users to their role home
+*/
 export function watchAuth(redirectByRole = false) {
   onAuthStateChanged(auth, async (user) => {
+    // Build absolute paths for protected pages using the document base
+    const protectedPaths = new Set([
+      new URL("technician.html", document.baseURI).pathname,
+      new URL("dashboard.html",  document.baseURI).pathname
+    ]);
+    const here = location.pathname;
+
     if (!user) {
-      const protectedRoutes = ["/technician.html", "/dashboard.html"];
-      if (protectedRoutes.some(p => location.pathname.endsWith(p))) {
-        location.replace("./index.html"); // or ./login.html if you prefer
-      }
+      if (protectedPaths.has(here)) go("index.html");
       return;
     }
+
     if (redirectByRole) {
       const role = await getUserRole(user.uid);
-      if (role === "tech") location.replace("./technician.html");
-      else location.replace("./dashboard.html");
+      location.replace(roleHome(role));
     }
   });
 }
 
-export async function login(email, password) {
-  const { user } = await signInWithEmailAndPassword(auth, email, password);
-  return user;
+/* ===== Session helpers ===== */
+export function currentUser() { return auth.currentUser; }
+
+/* Map a role to a landing page (returns absolute path using BASE) */
+export function roleHome(role) {
+  switch (role) {
+    case ROLES.tech:   return BASE + "technician.html";
+    case ROLES.pm:     return BASE + "dashboard.html";   // update when pm.html exists
+    case ROLES.client: return BASE + "dashboard.html";   // update when client.html exists
+    case ROLES.admin:  return BASE + "dashboard.html";   // update when admin.html exists
+    default:           return BASE + "index.html";
+  }
+}
+
+/* Require a role on a page; bounce if missing/wrong */
+export async function requireRole(expectedRole) {
+  const user = auth.currentUser;
+  if (!user) { go("index.html"); return; }
+
+  const role = await getUserRole(user.uid);
+  if (!role) { go("index.html"); return; }
+
+  if (expectedRole && role !== expectedRole) {
+    location.replace(roleHome(role));
+  }
+}
+
+/* Sign in / out wrappers */
+export async function signIn(email, password) {
+  return await signInWithEmailAndPassword(auth, email, password);
 }
 
 export async function logout() {
   await signOut(auth);
-  location.replace("./index.html"); // or ./login.html
+  go("index.html");
 }
