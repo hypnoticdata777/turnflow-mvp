@@ -36,7 +36,56 @@
     <div id="sidebar-container"></div>
 
     <main class="flex-1 p-6">
-      </main>
+      <h1 class="text-3xl font-bold mb-6">🆕 Create New Project</h1>
+
+      <div class="max-w-4xl bg-white p-6 rounded-xl shadow">
+        <h2 class="text-xl font-semibold mb-4">Project Details</h2>
+
+        <div class="space-y-4 mb-6">
+          <div>
+            <label class="block text-sm font-medium mb-1">Project Name</label>
+            <input id="projectName" type="text" class="w-full p-2 border rounded" placeholder="Enter project name" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Property Address</label>
+            <input id="propertyAddress" type="text" class="w-full p-2 border rounded" placeholder="Enter property address" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Unit Number</label>
+            <input id="unitNumber" type="text" class="w-full p-2 border rounded" placeholder="Enter unit number">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Owner Name</label>
+            <input id="ownerName" type="text" class="w-full p-2 border rounded" placeholder="Enter owner name" required>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Target Completion Date</label>
+            <input id="completionDate" type="date" class="w-full p-2 border rounded" required>
+          </div>
+        </div>
+
+        <hr class="my-6">
+
+        <div class="mb-4">
+          <h2 class="text-xl font-semibold mb-3">Tasks & Estimates</h2>
+          <div id="taskList" class="space-y-3"></div>
+          <button id="addTaskBtn" class="mt-3 bg-blue-600 text-white px-4 py-2 rounded">+ Add Task</button>
+        </div>
+
+        <div class="mt-6 text-xl font-bold">
+          Total Estimate: <span id="totalEstimate" class="text-green-600">$0.00</span>
+        </div>
+
+        <div class="mt-6 flex gap-3">
+          <button id="saveProjectBtn" class="bg-green-600 text-white px-6 py-2 rounded">💾 Save Project</button>
+          <a href="dashboard.html" class="bg-gray-600 text-white px-6 py-2 rounded inline-block">⬅ Cancel</a>
+        </div>
+      </div>
+    </main>
     
   </div>
 </body>

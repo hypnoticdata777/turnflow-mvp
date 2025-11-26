@@ -89,8 +89,8 @@
   <script type="module" src="./public/js/technician.js"></script>
 
   <script type="module">
-    // ✅ UPDATED IMPORT PATH
-    import { db, currentUser } from './public/js/auth.js';
+    import { db } from './public/js/firebase-config.js';
+    import { currentUser } from './public/js/auth.js';
     import { collection, query, where, getDocs }
       from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
