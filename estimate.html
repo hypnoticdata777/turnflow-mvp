@@ -6,7 +6,7 @@
   <title>Project Estimate</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="public/js/script.js" defer></script>
+  <script type="module" src="public/js/script.js"></script>
 </head>
 
 <body class="bg-gray-100">
@@ -35,45 +35,58 @@
     </div>
   </div>
     
-  <script>
+  <script type="module">
+    import { getProject } from './public/js/firestore-projects.js';
+
     const { jsPDF } = window.jspdf;
-    const projectData = JSON.parse(localStorage.getItem("turnflow_project"));
-    const taskData = JSON.parse(localStorage.getItem("turnflow_tasks"));
+    let projectData = null;
+    let taskData = null;
 
     const projectInfoDiv = document.getElementById("projectInfo");
     const taskSummaryDiv = document.getElementById("taskSummary");
     const finalEstimateSpan = document.getElementById("finalEstimate");
 
-    if (projectData && taskData) {
-      projectInfoDiv.innerHTML = `
-        <p><strong>Project:</strong> ${projectData.projectName}</p>
-        <p><strong>Address:</strong> ${projectData.address}, Unit ${projectData.unit}</p>
-        <p><strong>Owner:</strong> ${projectData.owner}</p>
-        <p><strong>Target Completion:</strong> ${projectData.date}</p>
-      `;
+    // Get project ID from sessionStorage
+    const projectId = sessionStorage.getItem("viewing_project_id");
 
-      let grandTotal = 0;
+    if (projectId) {
+      try {
+        projectData = await getProject(projectId);
+        taskData = projectData.tasks || [];
 
-      taskData.forEach((task, index) => {
-        const cost = (task.hours * task.rate) + task.material;
-        grandTotal += cost;
-
-        taskSummaryDiv.innerHTML += `
-          <div class="border p-4 rounded bg-gray-50">
-            <h3 class="font-semibold mb-1">Task #${index + 1}: ${task.name}</h3>
-            <p><strong>Labor:</strong> ${task.hours} hrs @ $${task.rate}/hr = $${(task.hours * task.rate).toFixed(2)}</p>
-            <p><strong>Materials:</strong> $${task.material.toFixed(2)}</p>
-            <p><strong>Total:</strong> $${cost.toFixed(2)}</p>
-          </div>
+        projectInfoDiv.innerHTML = `
+          <p><strong>Project:</strong> ${projectData.projectName}</p>
+          <p><strong>Address:</strong> ${projectData.address}, Unit ${projectData.unit}</p>
+          <p><strong>Owner:</strong> ${projectData.owner}</p>
+          <p><strong>Target Completion:</strong> ${projectData.date}</p>
         `;
-      });
 
-      finalEstimateSpan.textContent = `$${grandTotal.toFixed(2)}`;
+        let grandTotal = 0;
+
+        taskData.forEach((task, index) => {
+          const cost = (task.hours * task.rate) + task.material;
+          grandTotal += cost;
+
+          taskSummaryDiv.innerHTML += `
+            <div class="border p-4 rounded bg-gray-50">
+              <h3 class="font-semibold mb-1">Task #${index + 1}: ${task.name}</h3>
+              <p><strong>Labor:</strong> ${task.hours} hrs @ $${task.rate}/hr = $${(task.hours * task.rate).toFixed(2)}</p>
+              <p><strong>Materials:</strong> $${task.material.toFixed(2)}</p>
+              <p><strong>Total:</strong> $${cost.toFixed(2)}</p>
+            </div>
+          `;
+        });
+
+        finalEstimateSpan.textContent = `$${grandTotal.toFixed(2)}`;
+      } catch (error) {
+        console.error("Error loading project:", error);
+        projectInfoDiv.innerHTML = `<p class="text-red-500">Error loading project data.</p>`;
+      }
     } else {
-      projectInfoDiv.innerHTML = `<p class="text-red-500">No project data found.</p>`;
+      projectInfoDiv.innerHTML = `<p class="text-red-500">No project selected.</p>`;
     }
 
-    function downloadPDF() {
+    window.downloadPDF = function() {
       if (!projectData || !taskData) return;
       const doc = new jsPDF();
 

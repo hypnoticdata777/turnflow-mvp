@@ -6,7 +6,7 @@
   <title>Project Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="public/css/style.css" />
-  <script src="public/js/script.js" defer></script>
+  <script type="module" src="public/js/script.js"></script>
 </head>
 
 <body class="bg-gray-100">
@@ -24,45 +24,53 @@
     </main>
   </div>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
+  <script type="module">
+    import { getAllProjects } from './public/js/firestore-projects.js';
+
+    document.addEventListener("DOMContentLoaded", async () => {
       const projectList = document.getElementById("projectList");
-      const allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
 
-      if (allProjects.length === 0) {
-        projectList.innerHTML = `<p class="text-red-500">No projects saved yet.</p>`;
-        return;
-      }
+      try {
+        const allProjects = await getAllProjects();
 
-      const tasksHTMLFor = (project) => project.tasks
-        .map((t, i) => {
-          const key = (window.tf_getTaskStatus) ? tf_getTaskStatus(t) : (t.completed ? "completed" : "open");
-          const label = (window.tf_statusLabel) ? tf_statusLabel(key) : (t.completed ? "Completed" : "Pending");
-          const badge = `<span class="task-status tf-badge" data-status="${key}">${label}</span>`;
+        if (allProjects.length === 0) {
+          projectList.innerHTML = `<p class="text-red-500">No projects saved yet.</p>`;
+          return;
+        }
+
+        const tasksHTMLFor = (project) => project.tasks
+          .map((t, i) => {
+            const key = (window.tf_getTaskStatus) ? tf_getTaskStatus(t) : (t.completed ? "completed" : "open");
+            const label = (window.tf_statusLabel) ? tf_statusLabel(key) : (t.completed ? "Completed" : "Pending");
+            const badge = `<span class="task-status tf-badge" data-status="${key}">${label}</span>`;
+            return `
+              <li class="flex justify-between items-center border p-2 mb-1 bg-gray-50 rounded" data-task-id="${i}">
+                <span>${t.name} - ${badge}</span>
+                ${!t.completed ? `<button onclick="markTaskComplete('${project.id}', ${i})" class="bg-green-500 text-white px-2 py-1 rounded">Complete</button>` : ""}
+              </li>`;
+          }).join("");
+
+        projectList.innerHTML = allProjects.map((project) => {
+          const total = project.tasks.reduce((sum, task) => sum + task.hours * task.rate + task.material, 0);
           return `
-            <li class="flex justify-between items-center border p-2 mb-1 bg-gray-50 rounded" data-task-id="${i}">
-              <span>${t.name} - ${badge}</span>
-              ${!t.completed ? `<button onclick="markTaskComplete(${project.id}, ${i})" class="bg-green-500 text-white px-2 py-1 rounded">Complete</button>` : ""}
-            </li>`;
+            <div class="border p-4 rounded bg-white shadow">
+              <h2 class="text-xl font-semibold">${project.projectName} (${project.owner})</h2>
+              <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
+              <p><strong>Target Date:</strong> ${project.date}</p>
+              <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
+              <h3 class="mt-3 font-bold">Tasks:</h3>
+              <ul class="mt-1">${tasksHTMLFor(project)}</ul>
+              <div class="mt-3 flex gap-2">
+                <button onclick="viewProject('${project.id}')" class="bg-blue-600 text-white px-3 py-1 rounded">View Estimate</button>
+                <button onclick="editProject('${project.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
+                <button onclick="deleteProject('${project.id}')" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
+              </div>
+            </div>`;
         }).join("");
-
-      projectList.innerHTML = allProjects.map((project) => {
-        const total = project.tasks.reduce((sum, task) => sum + task.hours * task.rate + task.material, 0);
-        return `
-          <div class="border p-4 rounded bg-white shadow">
-            <h2 class="text-xl font-semibold">${project.projectName} (${project.owner})</h2>
-            <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
-            <p><strong>Target Date:</strong> ${project.date}</p>
-            <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
-            <h3 class="mt-3 font-bold">Tasks:</h3>
-            <ul class="mt-1">${tasksHTMLFor(project)}</ul>
-            <div class="mt-3 flex gap-2">
-              <button onclick="viewProject(${project.id})" class="bg-blue-600 text-white px-3 py-1 rounded">View Estimate</button>
-              <button onclick="editProject(${project.id})" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
-              <button onclick="deleteProject(${project.id})" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
-            </div>
-          </div>`;
-      }).join("");
+      } catch (error) {
+        console.error("Error loading projects:", error);
+        projectList.innerHTML = `<p class="text-red-500">Error loading projects. Please refresh the page.</p>`;
+      }
     });
   </script>
 

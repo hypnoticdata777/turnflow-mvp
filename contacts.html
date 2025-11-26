@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Contacts - TurnFlow™</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="public/js/script.js" defer></script>
+  <script type="module" src="public/js/script.js"></script>
 </head>
 
 <body class="bg-gray-100">
   <div class="flex">
-    
+
     <div id="sidebar-container"></div>
 
     <div class="flex-1 p-6">
+      <header class="flex justify-end mb-4">
+        <button id="logoutBtn" class="px-3 py-1 border rounded">Logout</button>
+      </header>
+
       <h1 class="text-3xl font-bold mb-6">👥 Contacts</h1>
 
       <div class="bg-white p-4 rounded-xl shadow mb-6">
@@ -77,6 +81,13 @@
 
       renderContacts();
     });
+  </script>
+
+  <script type="module" src="public/js/firebase-config.js"></script>
+  <script type="module" src="public/js/auth.js"></script>
+  <script type="module">
+    import { logout } from "./public/js/auth.js";
+    document.getElementById("logoutBtn")?.addEventListener("click", logout);
   </script>
 </body>
 </html>
