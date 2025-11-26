@@ -2,8 +2,18 @@
 // TurnFlow™ Main Script
 // ===================================================
 
+import {
+  createProject,
+  getAllProjects,
+  getProject,
+  updateProject,
+  deleteProject as deleteProjectFromFirestore,
+  markTaskComplete as markTaskCompleteInFirestore
+} from './firestore-projects.js';
+
 // --- Global Variables ---
 let taskCount = 0;
+let editingProjectId = null; // Track if we're editing an existing project
 
 // --- Utility & Status Helper Functions ---
 function tf_isValidDate(d) { return d instanceof Date && !isNaN(d); }
@@ -84,10 +94,9 @@ function calculateTotal() {
   document.getElementById("totalEstimate").textContent = `$${total.toFixed(2)}`;
 }
 
-// Saves the project from the form to localStorage
-function saveProject() {
-  const project = {
-    id: Date.now(),
+// Saves the project from the form to Firestore
+async function saveProject() {
+  const projectData = {
     projectName: document.getElementById("projectName").value,
     address: document.getElementById("propertyAddress").value,
     unit: document.getElementById("unitNumber").value,
@@ -98,7 +107,7 @@ function saveProject() {
   };
 
   document.querySelectorAll("#taskList > div").forEach(task => {
-    project.tasks.push({
+    projectData.tasks.push({
       name: task.querySelector(".taskName").value,
       hours: parseFloat(task.querySelector(".laborHours").value) || 0,
       rate: parseFloat(task.querySelector(".laborRate").value) || 0,
@@ -107,47 +116,54 @@ function saveProject() {
     });
   });
 
-  let allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
-  allProjects.push(project);
-  localStorage.setItem("turnflow_projects", JSON.stringify(allProjects));
-
-  window.location.href = "dashboard.html";
+  try {
+    if (editingProjectId) {
+      // Update existing project
+      await updateProject(editingProjectId, projectData);
+      sessionStorage.removeItem("editing_project_id");
+    } else {
+      // Create new project
+      await createProject(projectData);
+    }
+    window.location.href = "dashboard.html";
+  } catch (error) {
+    console.error("Error saving project:", error);
+    alert("Failed to save project. Please try again.");
+  }
 }
 
 
 // --- Dashboard Action Functions ---
 
-function deleteProject(id) {
-  let all = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
-  all = all.filter((p) => p.id !== id);
-  localStorage.setItem("turnflow_projects", JSON.stringify(all));
-  window.location.reload();
+async function deleteProject(id) {
+  try {
+    await deleteProjectFromFirestore(id);
+    window.location.reload();
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    alert("Failed to delete project. Please try again.");
+  }
 }
 
 function editProject(id) {
-  const all = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
-  const selected = all.find((p) => p.id === id);
-  localStorage.setItem("editing_project", JSON.stringify(selected));
-  // ✅ BUG FIX: Redirect to the project form page, not the login page.
-  window.location.href = "new-project.html"; 
+  // Store the project ID in sessionStorage for editing
+  sessionStorage.setItem("editing_project_id", id);
+  window.location.href = "new-project.html";
 }
 
 function viewProject(id) {
-  const all = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
-  const selected = all.find((p) => p.id === id);
-  localStorage.setItem("turnflow_project", JSON.stringify(selected));
-  localStorage.setItem("turnflow_tasks", JSON.stringify(selected.tasks));
+  // Store the project ID in sessionStorage for viewing
+  sessionStorage.setItem("viewing_project_id", id);
   window.location.href = "estimate.html";
 }
 
-function markTaskComplete(projectId, taskIndex) {
-  let all = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
-  let projIndex = all.findIndex((p) => p.id === projectId);
-
-  if (projIndex !== -1) {
-    all[projIndex].tasks[taskIndex].completed = true;
-    localStorage.setItem("turnflow_projects", JSON.stringify(all));
+async function markTaskComplete(projectId, taskIndex) {
+  try {
+    await markTaskCompleteInFirestore(projectId, taskIndex);
     window.location.reload();
+  } catch (error) {
+    console.error("Error marking task complete:", error);
+    alert("Failed to update task. Please try again.");
   }
 }
 
@@ -186,62 +202,72 @@ document.addEventListener("DOMContentLoaded", () => {
   if (saveProjectBtn) saveProjectBtn.addEventListener("click", saveProject);
 
   // Check if we are editing a project and populate the form
-  const editingProject = JSON.parse(localStorage.getItem("editing_project"));
-  if (editingProject && document.getElementById("projectName")) {
-    document.getElementById("projectName").value = editingProject.projectName;
-    document.getElementById("propertyAddress").value = editingProject.address;
-    document.getElementById("unitNumber").value = editingProject.unit;
-    document.getElementById("ownerName").value = editingProject.owner;
-    document.getElementById("completionDate").value = editingProject.date;
+  const editingProjectIdStr = sessionStorage.getItem("editing_project_id");
+  if (editingProjectIdStr && document.getElementById("projectName")) {
+    editingProjectId = editingProjectIdStr;
 
-    editingProject.tasks.forEach((task) => {
-      taskCount++;
-      const taskHTML = createTaskHTML(taskCount, task);
-      document.getElementById("taskList").insertAdjacentHTML("beforeend", taskHTML);
+    // Load project from Firestore
+    getProject(editingProjectId).then(project => {
+      document.getElementById("projectName").value = project.projectName;
+      document.getElementById("propertyAddress").value = project.address;
+      document.getElementById("unitNumber").value = project.unit;
+      document.getElementById("ownerName").value = project.owner;
+      document.getElementById("completionDate").value = project.date;
+
+      project.tasks.forEach((task) => {
+        taskCount++;
+        const taskHTML = createTaskHTML(taskCount, task);
+        document.getElementById("taskList").insertAdjacentHTML("beforeend", taskHTML);
+      });
+
+      attachLiveCalculation();
+      calculateTotal();
+    }).catch(error => {
+      console.error("Error loading project for editing:", error);
+      sessionStorage.removeItem("editing_project_id");
     });
-
-    attachLiveCalculation();
-    calculateTotal();
-    localStorage.removeItem("editing_project");
   }
 
   // --- Logic for the "Stats" Page ---
   if (document.getElementById("taskChart") || document.getElementById("costChart")) {
-    const allProjects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
-    let completed = 0, pending = 0, costData = {};
+    getAllProjects().then(allProjects => {
+      let completed = 0, pending = 0, costData = {};
 
-    allProjects.forEach((p) => {
-      let totalCost = 0;
-      p.tasks.forEach((t) => {
-        if (t.completed) completed++;
-        else pending++;
-        totalCost += (t.hours * t.rate) + t.material;
+      allProjects.forEach((p) => {
+        let totalCost = 0;
+        p.tasks.forEach((t) => {
+          if (t.completed) completed++;
+          else pending++;
+          totalCost += (t.hours * t.rate) + t.material;
+        });
+        costData[p.address] = (costData[p.address] || 0) + totalCost;
       });
-      costData[p.address] = (costData[p.address] || 0) + totalCost;
+
+      // PIE CHART
+      if (document.getElementById("taskChart")) {
+        new Chart(document.getElementById("taskChart"), {
+          type: "pie",
+          data: {
+            labels: ["Completed", "Pending"],
+            datasets: [{ data: [completed, pending], backgroundColor: ["#22c55e", "#ef4444"] }]
+          }
+        });
+      }
+
+      // BAR CHART
+      if (document.getElementById("costChart")) {
+        new Chart(document.getElementById("costChart"), {
+          type: "bar",
+          data: {
+            labels: Object.keys(costData),
+            datasets: [{ label: "Total Cost", data: Object.values(costData), backgroundColor: "#3b82f6" }]
+          },
+          options: { responsive: true, scales: { y: { beginAtZero: true } } }
+        });
+      }
+    }).catch(error => {
+      console.error("Error loading stats:", error);
     });
-
-    // PIE CHART
-    if (document.getElementById("taskChart")) {
-      new Chart(document.getElementById("taskChart"), {
-        type: "pie",
-        data: {
-          labels: ["Completed", "Pending"],
-          datasets: [{ data: [completed, pending], backgroundColor: ["#22c55e", "#ef4444"] }]
-        }
-      });
-    }
-
-    // BAR CHART
-    if (document.getElementById("costChart")) {
-      new Chart(document.getElementById("costChart"), {
-        type: "bar",
-        data: {
-          labels: Object.keys(costData),
-          datasets: [{ label: "Total Cost", data: Object.values(costData), backgroundColor: "#3b82f6" }]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: true } } }
-      });
-    }
   }
 });
 

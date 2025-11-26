@@ -5,42 +5,59 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pending to Send - TurnFlow™</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="public/js/script.js" defer></script>
+  <script type="module" src="public/js/script.js"></script>
 </head>
 
 <body class="bg-gray-100">
   <div class="flex">
-    
+
     <div id="sidebar-container"></div>
 
     <div class="flex-1 p-6">
+      <header class="flex justify-end mb-4">
+        <button id="logoutBtn" class="px-3 py-1 border rounded">Logout</button>
+      </header>
+
       <h1 class="text-3xl font-bold mb-6">📤 Projects Pending to Send</h1>
       <div id="projectList" class="space-y-4"></div>
     </div>
   </div>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
+  <script type="module">
+    import { getProjectsByStatus } from './public/js/firestore-projects.js';
+
+    document.addEventListener("DOMContentLoaded", async () => {
       const projectList = document.getElementById("projectList");
-      const projects = JSON.parse(localStorage.getItem("turnflow_projects")) || [];
 
-      const filtered = projects.filter(p => p.status === "Approved");
+      try {
+        const filtered = await getProjectsByStatus("Approved");
 
-      if (filtered.length === 0) {
-        projectList.innerHTML = `<p class="text-red-500">No projects pending to send.</p>`;
-        return;
+        if (filtered.length === 0) {
+          projectList.innerHTML = `<p class="text-red-500">No projects pending to send.</p>`;
+          return;
+        }
+
+        projectList.innerHTML = filtered.map(p => `
+          <div class="border p-4 rounded bg-white shadow">
+            <h2 class="text-xl font-semibold">${p.projectName}</h2>
+            <p><strong>Owner:</strong> ${p.owner}</p>
+            <p><strong>Address:</strong> ${p.address}, Unit ${p.unit}</p>
+            <p><strong>Target Date:</strong> ${p.date}</p>
+            <button onclick="viewProject('${p.id}')" class="bg-blue-500 text-white px-3 py-1 rounded mt-2">View</button>
+          </div>
+        `).join("");
+      } catch (error) {
+        console.error("Error loading projects:", error);
+        projectList.innerHTML = `<p class="text-red-500">Error loading projects. Please refresh the page.</p>`;
       }
-
-      projectList.innerHTML = filtered.map(p => `
-        <div class="border p-4 rounded bg-white shadow">
-          <h2 class="text-xl font-semibold">${p.projectName}</h2>
-          <p><strong>Owner:</strong> ${p.owner}</p>
-          <p><strong>Address:</strong> ${p.address}, Unit ${p.unit}</p>
-          <p><strong>Target Date:</strong> ${p.date}</p>
-          <button onclick="viewProject(${p.id})" class="bg-blue-500 text-white px-3 py-1 rounded mt-2">View</button>
-        </div>
-      `).join("");
     });
+  </script>
+
+  <script type="module" src="public/js/firebase-config.js"></script>
+  <script type="module" src="public/js/auth.js"></script>
+  <script type="module">
+    import { logout } from "./public/js/auth.js";
+    document.getElementById("logoutBtn")?.addEventListener("click", logout);
   </script>
 </body>
 </html>
