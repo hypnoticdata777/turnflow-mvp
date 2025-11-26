@@ -26,5 +26,6 @@ appId: "1:183972548936:web:23257f5d6273a7c1bbe37d"
 const app = initializeApp(firebaseConfig);
 
 // Export the services you need in other files
+export { app };
 export const auth = getAuth(app);
 export const db = getFirestore(app);
