@@ -37,6 +37,7 @@
     
   <script type="module">
     import { getProject } from './public/js/firestore-projects.js';
+    import { escHtml } from './public/js/utils.js';
 
     const { jsPDF } = window.jspdf;
     let projectData = null;
@@ -55,35 +56,33 @@
         taskData = projectData.tasks || [];
 
         projectInfoDiv.innerHTML = `
-          <p><strong>Project:</strong> ${projectData.projectName}</p>
-          <p><strong>Address:</strong> ${projectData.address}, Unit ${projectData.unit}</p>
-          <p><strong>Owner:</strong> ${projectData.owner}</p>
-          <p><strong>Target Completion:</strong> ${projectData.date}</p>
+          <p><strong>Project:</strong> ${escHtml(projectData.projectName)}</p>
+          <p><strong>Address:</strong> ${escHtml(projectData.address)}, Unit ${escHtml(projectData.unit)}</p>
+          <p><strong>Owner:</strong> ${escHtml(projectData.owner)}</p>
+          <p><strong>Target Completion:</strong> ${escHtml(projectData.date)}</p>
         `;
 
         let grandTotal = 0;
-
-        taskData.forEach((task, index) => {
+        const taskItems = taskData.map((task, index) => {
           const cost = (task.hours * task.rate) + task.material;
           grandTotal += cost;
-
-          taskSummaryDiv.innerHTML += `
+          return `
             <div class="border p-4 rounded bg-gray-50">
-              <h3 class="font-semibold mb-1">Task #${index + 1}: ${task.name}</h3>
-              <p><strong>Labor:</strong> ${task.hours} hrs @ $${task.rate}/hr = $${(task.hours * task.rate).toFixed(2)}</p>
-              <p><strong>Materials:</strong> $${task.material.toFixed(2)}</p>
+              <h3 class="font-semibold mb-1">Task #${index + 1}: ${escHtml(task.name)}</h3>
+              <p><strong>Labor:</strong> ${escHtml(String(task.hours))} hrs @ $${escHtml(String(task.rate))}/hr = $${(task.hours * task.rate).toFixed(2)}</p>
+              <p><strong>Materials:</strong> $${Number(task.material).toFixed(2)}</p>
               <p><strong>Total:</strong> $${cost.toFixed(2)}</p>
             </div>
           `;
         });
-
+        taskSummaryDiv.innerHTML = taskItems.join('');
         finalEstimateSpan.textContent = `$${grandTotal.toFixed(2)}`;
       } catch (error) {
         console.error("Error loading project:", error);
-        projectInfoDiv.innerHTML = `<p class="text-red-500">Error loading project data.</p>`;
+        projectInfoDiv.innerHTML = `<p class="text-red-500">Failed to load project data. The project may not exist or you may not have access.</p>`;
       }
     } else {
-      projectInfoDiv.innerHTML = `<p class="text-red-500">No project selected.</p>`;
+      projectInfoDiv.innerHTML = `<p class="text-red-500">No project selected. Please go back to the dashboard and select a project.</p>`;
     }
 
     window.downloadPDF = function() {

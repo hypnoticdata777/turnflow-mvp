@@ -5,24 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Backup Projects</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="public/js/script.js" defer></script>
+  <script type="module" src="public/js/script.js"></script>
 </head>
 
 <body class="bg-gray-100">
   <div class="flex">
-    
+
     <div id="sidebar-container"></div>
 
     <div class="flex-1 p-6">
       <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
-        <h1 class="text-2xl font-bold mb-6">Backup & Restore Projects</h1>
+        <h1 class="text-2xl font-bold mb-2">Backup & Restore Projects</h1>
+        <p class="text-sm text-gray-500 mb-6">Exports and imports your live Firestore project data.</p>
 
-        <button id="backupBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-4 w-full">
+        <button id="backupBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-6 w-full">
           📥 Download Backup (JSON)
         </button>
 
         <h2 class="text-xl font-semibold mb-2">Restore from Backup</h2>
-        <input type="file" id="fileInput" class="mb-4" accept=".json" />
+        <p class="text-sm text-gray-500 mb-3">
+          Importing will <strong>add</strong> the projects from the file as new entries — existing projects are not overwritten.
+        </p>
+        <input type="file" id="fileInput" class="mb-4 w-full" accept=".json" />
         <button id="restoreBtn" class="bg-green-600 text-white px-4 py-2 rounded w-full">
           📤 Restore Backup
         </button>
@@ -32,54 +36,106 @@
     </div>
   </div>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const backupBtn = document.getElementById("backupBtn");
-      const restoreBtn = document.getElementById("restoreBtn");
-      const fileInput = document.getElementById("fileInput");
-      const statusMsg = document.getElementById("statusMsg");
+  <script type="module">
+    import { getAllProjects, createProject } from './public/js/firestore-projects.js';
 
-      // Download JSON Backup
-      backupBtn.addEventListener("click", () => {
-        const projects = localStorage.getItem("turnflow_projects") || "[]";
-        const blob = new Blob([projects], { type: "application/json" });
+    const backupBtn = document.getElementById("backupBtn");
+    const restoreBtn = document.getElementById("restoreBtn");
+    const fileInput = document.getElementById("fileInput");
+    const statusMsg = document.getElementById("statusMsg");
+
+    function setStatus(msg, isError = false) {
+      statusMsg.textContent = msg;
+      statusMsg.className = isError ? "mt-4 text-red-500" : "mt-4 text-green-600";
+    }
+
+    // Download all Firestore projects as a JSON file
+    backupBtn.addEventListener("click", async () => {
+      backupBtn.disabled = true;
+      backupBtn.textContent = "Preparing…";
+      setStatus("", false);
+
+      try {
+        const projects = await getAllProjects();
+        // Strip Firestore-managed fields before export so the file is clean for re-import
+        const exportData = projects.map(({ id, createdAt, updatedAt, ...rest }) => rest);
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "turnflow_backup.json";
+        a.download = `turnflow_backup_${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
-      });
+        setStatus(`✅ Exported ${projects.length} project(s).`);
+      } catch (err) {
+        console.error("Backup failed:", err);
+        setStatus("❌ Backup failed. Check your connection and try again.", true);
+      } finally {
+        backupBtn.disabled = false;
+        backupBtn.textContent = "📥 Download Backup (JSON)";
+      }
+    });
 
-      // Restore JSON Backup
-      restoreBtn.addEventListener("click", () => {
-        const file = fileInput.files[0];
-        if (!file) {
-          statusMsg.textContent = "❌ Please select a JSON file first.";
-          statusMsg.className = "text-red-500";
+    // Restore: import projects from a JSON file into Firestore
+    restoreBtn.addEventListener("click", () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        setStatus("❌ Please select a JSON backup file first.", true);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        let data;
+        try {
+          data = JSON.parse(e.target.result);
+        } catch {
+          setStatus("❌ Invalid JSON file.", true);
           return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const data = JSON.parse(e.target.result);
-            if (Array.isArray(data)) {
-              localStorage.setItem("turnflow_projects", JSON.stringify(data));
-              statusMsg.textContent = "✅ Backup restored! Refresh dashboard.";
-              statusMsg.className = "text-green-600";
-            } else {
-              throw new Error("Invalid format");
-            }
-          } catch {
-            statusMsg.textContent = "❌ Invalid JSON file.";
-            statusMsg.className = "text-red-500";
-          }
-        };
+        if (!Array.isArray(data)) {
+          setStatus("❌ Backup file must contain an array of projects.", true);
+          return;
+        }
 
-        reader.readAsText(file);
-      });
+        restoreBtn.disabled = true;
+        restoreBtn.textContent = "Restoring…";
+        setStatus("", false);
+
+        let imported = 0;
+        const errors = [];
+
+        for (const project of data) {
+          try {
+            await createProject(project);
+            imported++;
+          } catch (err) {
+            console.error("Failed to import project:", project, err);
+            errors.push(project.projectName || "(unnamed)");
+          }
+        }
+
+        restoreBtn.disabled = false;
+        restoreBtn.textContent = "📤 Restore Backup";
+        fileInput.value = "";
+
+        if (errors.length === 0) {
+          setStatus(`✅ Restored ${imported} project(s) successfully.`);
+        } else {
+          setStatus(`⚠️ Imported ${imported} project(s). Failed: ${errors.join(", ")}`, true);
+        }
+      };
+
+      reader.readAsText(file);
     });
+  </script>
+
+  <script type="module" src="public/js/firebase-config.js"></script>
+  <script type="module" src="public/js/auth.js"></script>
+  <script type="module">
+    import { logout } from "./public/js/auth.js";
+    document.getElementById("logoutBtn")?.addEventListener("click", logout);
   </script>
 </body>
 </html>
