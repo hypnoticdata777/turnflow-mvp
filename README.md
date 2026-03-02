@@ -1,36 +1,58 @@
-# Turnflow MVP
+# TurnFlow MVP
 
-Turnflow is a web application designed to help manage and track property turnover projects, from creating estimates to assigning tasks to technicians.
-
----
-
-### ✨ Features
-
-* **User Authentication:** Secure login for different user roles (PMs, Technicians).
-* **Project Management:** Create, edit, and delete turnover projects.
-* **Task Tracking:** Add tasks with cost estimates (labor, materials) to each project.
-* **Status Dashboards:** View projects based on their status (Pending Approval, Pending Send).
-* **Technician View:** A dedicated dashboard for technicians to view their assigned projects and upload photos.
-* **Data Backup:** Simple JSON backup and restore functionality for all project data.
+TurnFlow is a role-based property turnover management platform. Property managers create and estimate projects, technicians execute tasks and upload photo evidence, and clients track approval status — all in real time through a shared Firebase backend.
 
 ---
 
-### 🛠️ Tech Stack
+### Roles
 
-* **Frontend:** HTML5, CSS3, Vanilla JavaScript
-* **Styling:** Tailwind CSS (via CDN)
-* **Backend & Database:** Firebase (Authentication, Firestore, Storage)
-* **Charting:** Chart.js for project statistics
+| Role | Home page | Can do |
+|------|-----------|--------|
+| **PM / Admin** | Dashboard | Create, edit, delete projects; manage contacts; backup data |
+| **Technician** | Technician dashboard | View assigned projects; upload before/after/receipt photos |
+| **Client** | Pending Approval | View project approval status (read-only) |
 
 ---
 
-### 🚀 Getting Started
+### Features
 
-To run this project locally:
+- **Project lifecycle** — Create estimates with itemised tasks (labor hours, rate, materials); track status through Pending Approval → Approved → Sent
+- **Task completion** — Mark individual tasks complete from the dashboard; status badges update in real time
+- **Photo uploads** — Technicians upload before, after, and receipt photos per task; stored in Firebase Storage with a live gallery view
+- **Contacts** — Store and manage owner/client contacts in Firestore
+- **Stats** — Pie and bar charts (Chart.js) showing completed vs pending tasks and cost per property
+- **Backup / Restore** — Export all Firestore projects to a dated JSON file; re-import into a fresh environment
+- **Firestore Security Rules** — Role-enforced read/write access for all collections
 
-1.  Clone the repository:
-    `git clone https://github.com/your-username/turnflow-mvp.git`
+---
 
-2.  Create a `public/js/firebase-config.js` file and add your own Firebase project credentials.
+### Tech Stack
 
-3.  Open the `index.html` file in your browser to access the login page.
+- **Frontend:** Vanilla JS (ES Modules), HTML5
+- **Styling:** Tailwind CSS (CDN)
+- **Auth & Database:** Firebase Authentication + Firestore
+- **Storage:** Firebase Storage (technician photos)
+- **PDF export:** jsPDF
+- **Charts:** Chart.js
+
+---
+
+### Getting Started
+
+1. Clone the repo
+2. Add your Firebase credentials to `public/js/firebase-config.js`
+3. Deploy Firestore security rules: `firebase deploy --only firestore:rules`
+4. Open `index.html` in a browser (or serve with `npx serve .`)
+5. Create user accounts in the Firebase console and set each user's role in Firestore under `users/{uid}.role` (`pm`, `tech`, `client`, or `admin`)
+
+---
+
+### Next Build
+
+- Fix Firebase Hosting structure (`public/` mismatch) so pages deploy correctly
+- Add Content Security Policy headers via `firebase.json`
+- Add auth guards to `stats.html` and `estimate.html`
+- Fix auth race condition in `technician.html` (move project load inside `onAuthStateChanged`)
+- Build a proper read-only client portal page
+- Add login rate limiting after failed attempts
+- Add Firestore cursor-based pagination to the dashboard
