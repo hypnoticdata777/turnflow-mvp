@@ -26,15 +26,17 @@
 
   <script type="module">
     import { getAllProjects } from './public/js/firestore-projects.js';
+    import { escHtml } from './public/js/utils.js';
 
     document.addEventListener("DOMContentLoaded", async () => {
       const projectList = document.getElementById("projectList");
+      projectList.innerHTML = `<p class="text-gray-500">Loading projects…</p>`;
 
       try {
         const allProjects = await getAllProjects();
 
         if (allProjects.length === 0) {
-          projectList.innerHTML = `<p class="text-red-500">No projects saved yet.</p>`;
+          projectList.innerHTML = `<p class="text-gray-500">No projects saved yet.</p>`;
           return;
         }
 
@@ -42,11 +44,11 @@
           .map((t, i) => {
             const key = (window.tf_getTaskStatus) ? tf_getTaskStatus(t) : (t.completed ? "completed" : "open");
             const label = (window.tf_statusLabel) ? tf_statusLabel(key) : (t.completed ? "Completed" : "Pending");
-            const badge = `<span class="task-status tf-badge" data-status="${key}">${label}</span>`;
+            const badge = `<span class="task-status tf-badge" data-status="${escHtml(key)}">${escHtml(label)}</span>`;
             return `
               <li class="flex justify-between items-center border p-2 mb-1 bg-gray-50 rounded" data-task-id="${i}">
-                <span>${t.name} - ${badge}</span>
-                ${!t.completed ? `<button onclick="markTaskComplete('${project.id}', ${i})" class="bg-green-500 text-white px-2 py-1 rounded">Complete</button>` : ""}
+                <span>${escHtml(t.name)} - ${badge}</span>
+                ${!t.completed ? `<button data-project-id="${escHtml(project.id)}" data-task-index="${i}" class="completeBtn bg-green-500 text-white px-2 py-1 rounded">Complete</button>` : ""}
               </li>`;
           }).join("");
 
@@ -54,22 +56,43 @@
           const total = project.tasks.reduce((sum, task) => sum + task.hours * task.rate + task.material, 0);
           return `
             <div class="border p-4 rounded bg-white shadow">
-              <h2 class="text-xl font-semibold">${project.projectName} (${project.owner})</h2>
-              <p><strong>Address:</strong> ${project.address}, Unit ${project.unit}</p>
-              <p><strong>Target Date:</strong> ${project.date}</p>
+              <h2 class="text-xl font-semibold">${escHtml(project.projectName)} (${escHtml(project.owner)})</h2>
+              <p><strong>Address:</strong> ${escHtml(project.address)}, Unit ${escHtml(project.unit)}</p>
+              <p><strong>Target Date:</strong> ${escHtml(project.date)}</p>
               <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
               <h3 class="mt-3 font-bold">Tasks:</h3>
               <ul class="mt-1">${tasksHTMLFor(project)}</ul>
               <div class="mt-3 flex gap-2">
-                <button onclick="viewProject('${project.id}')" class="bg-blue-600 text-white px-3 py-1 rounded">View Estimate</button>
-                <button onclick="editProject('${project.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
-                <button onclick="deleteProject('${project.id}')" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
+                <button data-action="view" data-project-id="${escHtml(project.id)}" class="bg-blue-600 text-white px-3 py-1 rounded">View Estimate</button>
+                <button data-action="edit" data-project-id="${escHtml(project.id)}" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
+                <button data-action="delete" data-project-id="${escHtml(project.id)}" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
               </div>
             </div>`;
         }).join("");
+
+        // Single event listener for all project action buttons
+        projectList.addEventListener("click", (e) => {
+          const btn = e.target.closest("button[data-action], button.completeBtn");
+          if (!btn) return;
+
+          if (btn.classList.contains("completeBtn")) {
+            const pid = btn.dataset.projectId;
+            const idx = parseInt(btn.dataset.taskIndex, 10);
+            if (pid && !isNaN(idx)) window.markTaskComplete(pid, idx);
+            return;
+          }
+
+          const pid = btn.dataset.projectId;
+          if (!pid) return;
+          const action = btn.dataset.action;
+          if (action === "view") window.viewProject(pid);
+          else if (action === "edit") window.editProject(pid);
+          else if (action === "delete") window.deleteProject(pid);
+        });
+
       } catch (error) {
         console.error("Error loading projects:", error);
-        projectList.innerHTML = `<p class="text-red-500">Error loading projects. Please refresh the page.</p>`;
+        projectList.innerHTML = `<p class="text-red-500">Failed to load projects. Check your connection and try refreshing.</p>`;
       }
     });
   </script>

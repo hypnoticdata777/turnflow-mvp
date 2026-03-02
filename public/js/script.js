@@ -10,6 +10,7 @@ import {
   deleteProject as deleteProjectFromFirestore,
   markTaskComplete as markTaskCompleteInFirestore
 } from './firestore-projects.js';
+import { escHtml } from './utils.js';
 
 // --- Global Variables ---
 let taskCount = 0;
@@ -53,17 +54,18 @@ function tf_statusLabel(key) {
 
 // Creates the HTML for a single task form
 function createTaskHTML(id, task = { name: "", hours: "", rate: "", material: "" }) {
+  // escHtml used in attribute context (value="...") to prevent attribute injection
   return `
     <div class="p-4 border rounded bg-gray-50 mb-3" id="task-${id}">
       <h3 class="font-semibold text-lg mb-2">Task #${id}</h3>
       <label>Task Name:</label>
-      <input type="text" class="taskName block w-full mb-2 p-2 border rounded" value="${task.name}" />
+      <input type="text" class="taskName block w-full mb-2 p-2 border rounded" value="${escHtml(task.name)}" />
       <label>Est. Labor Hours:</label>
-      <input type="number" class="laborHours block w-full mb-2 p-2 border rounded" value="${task.hours}" />
+      <input type="number" class="laborHours block w-full mb-2 p-2 border rounded" value="${escHtml(String(task.hours))}" />
       <label>Est. Labor Rate:</label>
-      <input type="number" class="laborRate block w-full mb-2 p-2 border rounded" value="${task.rate}" />
+      <input type="number" class="laborRate block w-full mb-2 p-2 border rounded" value="${escHtml(String(task.rate))}" />
       <label>Material Cost:</label>
-      <input type="number" class="materialCost block w-full mb-2 p-2 border rounded" value="${task.material}" />
+      <input type="number" class="materialCost block w-full mb-2 p-2 border rounded" value="${escHtml(String(task.material))}" />
     </div>
   `;
 }
@@ -94,41 +96,58 @@ function calculateTotal() {
   document.getElementById("totalEstimate").textContent = `$${total.toFixed(2)}`;
 }
 
-// Saves the project from the form to Firestore
+// Validates and saves the project from the form to Firestore
 async function saveProject() {
+  const projectName = document.getElementById("projectName").value.trim();
+  const address = document.getElementById("propertyAddress").value.trim();
+  const unit = document.getElementById("unitNumber").value.trim();
+  const owner = document.getElementById("ownerName").value.trim();
+  const date = document.getElementById("completionDate").value;
+
+  // Validate required fields
+  const errors = [];
+  if (!projectName) errors.push("Project Name is required.");
+  if (!address) errors.push("Property Address is required.");
+  if (!owner) errors.push("Owner Name is required.");
+  if (!date) errors.push("Target Completion Date is required.");
+
+  const taskDivs = document.querySelectorAll("#taskList > div");
+  if (taskDivs.length === 0) errors.push("At least one task is required.");
+
+  if (errors.length > 0) {
+    alert("Please fix the following issues:\n\n" + errors.join("\n"));
+    return;
+  }
+
   const projectData = {
-    projectName: document.getElementById("projectName").value,
-    address: document.getElementById("propertyAddress").value,
-    unit: document.getElementById("unitNumber").value,
-    owner: document.getElementById("ownerName").value,
-    date: document.getElementById("completionDate").value,
+    projectName,
+    address,
+    unit,
+    owner,
+    date,
     status: "Pending Approval",
     tasks: []
   };
 
-  document.querySelectorAll("#taskList > div").forEach(task => {
-    projectData.tasks.push({
-      name: task.querySelector(".taskName").value,
-      hours: parseFloat(task.querySelector(".laborHours").value) || 0,
-      rate: parseFloat(task.querySelector(".laborRate").value) || 0,
-      material: parseFloat(task.querySelector(".materialCost").value) || 0,
-      completed: false
-    });
+  taskDivs.forEach(task => {
+    const name = task.querySelector(".taskName").value.trim();
+    const hours = parseFloat(task.querySelector(".laborHours").value) || 0;
+    const rate = parseFloat(task.querySelector(".laborRate").value) || 0;
+    const material = parseFloat(task.querySelector(".materialCost").value) || 0;
+    projectData.tasks.push({ name, hours, rate, material, completed: false });
   });
 
   try {
     if (editingProjectId) {
-      // Update existing project
       await updateProject(editingProjectId, projectData);
       sessionStorage.removeItem("editing_project_id");
     } else {
-      // Create new project
       await createProject(projectData);
     }
     window.location.href = "dashboard.html";
   } catch (error) {
     console.error("Error saving project:", error);
-    alert("Failed to save project. Please try again.");
+    alert("Failed to save project. Check your connection and try again.");
   }
 }
 
@@ -184,15 +203,19 @@ window.tf_statusLabel = tf_statusLabel;
 // ===================================================
 document.addEventListener("DOMContentLoaded", () => {
   
-  // ✅ NEW: Load the reusable sidebar component into its placeholder
+  // Load the reusable sidebar component into its placeholder
   const sidebarContainer = document.getElementById('sidebar-container');
   if (sidebarContainer) {
+    // Path is relative to root-level HTML pages where this script is used
     fetch('public/components/sidebar.html')
-      .then(response => response.text())
+      .then(response => {
+        if (!response.ok) throw new Error(`Sidebar fetch failed: ${response.status}`);
+        return response.text();
+      })
       .then(data => {
         sidebarContainer.innerHTML = data;
       })
-      .catch(error => console.error('Error loading sidebar:', error));
+      .catch(error => console.warn('Sidebar could not be loaded:', error));
   }
 
   // --- Logic for the "New Project" Page ---

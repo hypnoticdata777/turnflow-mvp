@@ -29,8 +29,11 @@ export async function getUserRole(uid) {
 
 export function roleHome(role) {
     switch (role) {
-        case ROLES.tech: return "technician.html";
-        default: return "dashboard.html"; // Default for pm, client, admin
+        case ROLES.tech:    return "technician.html";
+        case ROLES.pm:      return "dashboard.html";
+        case ROLES.admin:   return "dashboard.html";
+        case ROLES.client:  return "pending-approval.html"; // Clients view project approval status
+        default:            return "dashboard.html";
     }
 }
 

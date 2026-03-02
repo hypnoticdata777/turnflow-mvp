@@ -59,20 +59,38 @@ async function upload(type) {
 }
 
 async function loadGallery(projectId, taskId) {
-  gallery.innerHTML = "Loading…";
+  gallery.textContent = "Loading…";
   const q = query(collection(db, `projects/${projectId}/tasks/${taskId}/photos`));
   const snaps = await getDocs(q);
-  const items = [];
+
+  gallery.textContent = "";
+
+  if (snaps.empty) {
+    const p = document.createElement("p");
+    p.textContent = "No photos yet.";
+    gallery.appendChild(p);
+    return;
+  }
+
   snaps.forEach((docSnap) => {
     const d = docSnap.data();
-    items.push(
-      `<figure style="border:1px solid #eee;border-radius:10px;padding:6px">
-         <img src="${d.url}" alt="${d.type}" style="width:100%;height:140px;object-fit:cover;border-radius:8px">
-         <figcaption style="text-transform:capitalize;text-align:center;margin-top:6px">${d.type}</figcaption>
-       </figure>`
-    );
+
+    const figure = document.createElement("figure");
+    figure.style.cssText = "border:1px solid #eee;border-radius:10px;padding:6px";
+
+    const img = document.createElement("img");
+    img.src = d.url; // Firebase Storage URL, system-generated
+    img.alt = d.type + " photo";
+    img.style.cssText = "width:100%;height:140px;object-fit:cover;border-radius:8px";
+
+    const caption = document.createElement("figcaption");
+    caption.style.cssText = "text-transform:capitalize;text-align:center;margin-top:6px";
+    caption.textContent = d.type; // textContent, not innerHTML
+
+    figure.appendChild(img);
+    figure.appendChild(caption);
+    gallery.appendChild(figure);
   });
-  gallery.innerHTML = items.length ? items.join("") : "<p>No photos yet.</p>";
 }
 
 // Wire buttons

@@ -22,65 +22,139 @@
 
       <div class="bg-white p-4 rounded-xl shadow mb-6">
         <h2 class="text-xl font-semibold mb-4">Add New Contact</h2>
-        <form id="contact-form" class="space-y-3">
+        <p id="formError" class="text-red-500 text-sm mb-2 hidden"></p>
+        <form id="contact-form" class="space-y-3" novalidate>
           <input id="contactName" type="text" placeholder="Full Name" class="w-full p-2 border rounded" required>
           <input id="contactEmail" type="email" placeholder="Email" class="w-full p-2 border rounded" required>
-          <input id="contactPhone" type="text" placeholder="Phone" class="w-full p-2 border rounded" required>
+          <input id="contactPhone" type="tel" placeholder="Phone" class="w-full p-2 border rounded" required>
           <input id="contactProperty" type="text" placeholder="Property Address" class="w-full p-2 border rounded" required>
-          <button class="bg-green-600 text-white px-4 py-2 rounded" type="submit">Add Contact</button>
+          <button class="bg-green-600 text-white px-4 py-2 rounded" type="submit" id="submitBtn">Add Contact</button>
         </form>
       </div>
 
       <div class="bg-white p-4 rounded-xl shadow">
         <h2 class="text-xl font-semibold mb-4">Saved Contacts</h2>
-        <div id="contactList" class="space-y-3"></div>
+        <div id="contactList" class="space-y-3">
+          <p class="text-gray-500">Loading contacts…</p>
+        </div>
       </div>
     </div>
   </div>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const contactListDiv = document.getElementById("contactList");
-      const contactForm = document.getElementById("contact-form");
+  <script type="module">
+    import { getContacts, createContact, deleteContact } from './public/js/firestore-contacts.js';
 
-      function renderContacts() {
-        const contacts = JSON.parse(localStorage.getItem("turnflow_contacts")) || [];
-        contactListDiv.innerHTML = contacts.map((c, i) => `
-          <div class="p-3 border rounded flex justify-between items-center">
-            <div>
-              <p><strong>${c.name}</strong> (${c.email})</p>
-              <p>📞 ${c.phone}</p>
-              <p>🏠 ${c.property}</p>
-            </div>
-            <button onclick="deleteContact(${i})" class="bg-red-500 text-white px-3 py-1 rounded">Delete</button>
-          </div>
-        `).join("");
+    const contactListDiv = document.getElementById("contactList");
+    const contactForm = document.getElementById("contact-form");
+    const formError = document.getElementById("formError");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function showError(msg) {
+      formError.textContent = msg;
+      formError.classList.remove("hidden");
+    }
+
+    function clearError() {
+      formError.textContent = "";
+      formError.classList.add("hidden");
+    }
+
+    async function renderContacts() {
+      contactListDiv.innerHTML = '<p class="text-gray-500">Loading contacts…</p>';
+
+      try {
+        const contacts = await getContacts();
+
+        contactListDiv.textContent = "";
+
+        if (contacts.length === 0) {
+          const p = document.createElement("p");
+          p.className = "text-gray-500";
+          p.textContent = "No contacts yet.";
+          contactListDiv.appendChild(p);
+          return;
+        }
+
+        contacts.forEach(c => {
+          const row = document.createElement("div");
+          row.className = "p-3 border rounded flex justify-between items-center";
+
+          // Info built with DOM methods — no innerHTML, no XSS risk
+          const info = document.createElement("div");
+
+          const nameLine = document.createElement("p");
+          const nameStrong = document.createElement("strong");
+          nameStrong.textContent = c.name;
+          nameLine.appendChild(nameStrong);
+          nameLine.appendChild(document.createTextNode(` (${c.email})`));
+
+          const phoneLine = document.createElement("p");
+          phoneLine.textContent = `📞 ${c.phone}`;
+
+          const propLine = document.createElement("p");
+          propLine.textContent = `🏠 ${c.property}`;
+
+          info.appendChild(nameLine);
+          info.appendChild(phoneLine);
+          info.appendChild(propLine);
+
+          // Delete uses Firestore document ID, not an array index
+          const delBtn = document.createElement("button");
+          delBtn.className = "bg-red-500 text-white px-3 py-1 rounded";
+          delBtn.textContent = "Delete";
+          delBtn.addEventListener("click", async () => {
+            try {
+              await deleteContact(c.id);
+              await renderContacts();
+            } catch (err) {
+              console.error("Error deleting contact:", err);
+              alert("Failed to delete contact. Please try again.");
+            }
+          });
+
+          row.appendChild(info);
+          row.appendChild(delBtn);
+          contactListDiv.appendChild(row);
+        });
+      } catch (err) {
+        console.error("Error loading contacts:", err);
+        contactListDiv.innerHTML = '<p class="text-red-500">Failed to load contacts. Check your connection and try refreshing.</p>';
       }
+    }
 
-      window.deleteContact = (i) => {
-        const contacts = JSON.parse(localStorage.getItem("turnflow_contacts")) || [];
-        contacts.splice(i, 1);
-        localStorage.setItem("turnflow_contacts", JSON.stringify(contacts));
-        renderContacts();
-      };
+    contactForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      clearError();
 
-      contactForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const newContact = {
-          name: document.getElementById("contactName").value,
-          email: document.getElementById("contactEmail").value,
-          phone: document.getElementById("contactPhone").value,
-          property: document.getElementById("contactProperty").value
-        };
-        const contacts = JSON.parse(localStorage.getItem("turnflow_contacts")) || [];
-        contacts.push(newContact);
-        localStorage.setItem("turnflow_contacts", JSON.stringify(contacts));
+      const name = document.getElementById("contactName").value.trim();
+      const email = document.getElementById("contactEmail").value.trim();
+      const phone = document.getElementById("contactPhone").value.trim();
+      const property = document.getElementById("contactProperty").value.trim();
+
+      if (!name) { showError("Full Name is required."); return; }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError("A valid email address is required."); return;
+      }
+      if (!phone) { showError("Phone number is required."); return; }
+      if (!property) { showError("Property Address is required."); return; }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Saving…";
+
+      try {
+        await createContact({ name, email, phone, property });
         contactForm.reset();
-        renderContacts();
-      });
-
-      renderContacts();
+        await renderContacts();
+      } catch (err) {
+        console.error("Error saving contact:", err);
+        showError("Failed to save contact. Check your connection and try again.");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Add Contact";
+      }
     });
+
+    renderContacts();
   </script>
 
   <script type="module" src="public/js/firebase-config.js"></script>

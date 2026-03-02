@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isPMorAdmin() {
+      return isAuthed() && getRole() in ['pm', 'admin'];
+    }
+
+    function isAdmin() {
+      return isAuthed() && getRole() == 'admin';
+    }
+
+    function isTech() {
+      return isAuthed() && getRole() == 'tech';
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────
+    // Users can only read their own profile; only admins can write user docs.
+    match /users/{userId} {
+      allow read: if isAuthed() && request.auth.uid == userId;
+      allow write: if isAdmin();
+    }
+
+    // ── Projects ──────────────────────────────────────────────────────────
+    // Any authenticated user can read projects.
+    // Only PM or Admin can create, update, or delete projects.
+    match /projects/{projectId} {
+      allow read: if isAuthed();
+      allow create: if isPMorAdmin();
+      allow update: if isPMorAdmin();
+      allow delete: if isPMorAdmin();
+
+      // Photos subcollection (nested under tasks)
+      // Any authenticated user can read photos.
+      // Technicians can upload their own photos; admins can delete.
+      match /tasks/{taskId}/photos/{photoId} {
+        allow read: if isAuthed();
+        allow create: if isTech() && request.auth.uid == request.resource.data.techId;
+        allow update: if isAdmin();
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ── Contacts ──────────────────────────────────────────────────────────
+    // Any authenticated user can read contacts.
+    // Only PM or Admin can create, update, or delete contacts.
+    match /contacts/{contactId} {
+      allow read: if isAuthed();
+      allow create: if isPMorAdmin();
+      allow update: if isPMorAdmin();
+      allow delete: if isPMorAdmin();
+    }
+  }
+}

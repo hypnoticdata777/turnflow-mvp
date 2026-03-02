@@ -25,30 +25,37 @@
 
   <script type="module">
     import { getProjectsByStatus } from './public/js/firestore-projects.js';
+    import { escHtml } from './public/js/utils.js';
 
     document.addEventListener("DOMContentLoaded", async () => {
       const projectList = document.getElementById("projectList");
+      projectList.innerHTML = `<p class="text-gray-500">Loading…</p>`;
 
       try {
         const filtered = await getProjectsByStatus("Pending Approval");
 
         if (filtered.length === 0) {
-          projectList.innerHTML = `<p class="text-red-500">No projects pending approval.</p>`;
+          projectList.innerHTML = `<p class="text-gray-500">No projects pending approval.</p>`;
           return;
         }
 
         projectList.innerHTML = filtered.map(p => `
           <div class="border p-4 rounded bg-white shadow">
-            <h2 class="text-xl font-semibold">${p.projectName}</h2>
-            <p><strong>Owner:</strong> ${p.owner}</p>
-            <p><strong>Address:</strong> ${p.address}, Unit ${p.unit}</p>
-            <p><strong>Target Date:</strong> ${p.date}</p>
-            <button onclick="viewProject('${p.id}')" class="bg-blue-500 text-white px-3 py-1 rounded mt-2">View</button>
+            <h2 class="text-xl font-semibold">${escHtml(p.projectName)}</h2>
+            <p><strong>Owner:</strong> ${escHtml(p.owner)}</p>
+            <p><strong>Address:</strong> ${escHtml(p.address)}, Unit ${escHtml(p.unit)}</p>
+            <p><strong>Target Date:</strong> ${escHtml(p.date)}</p>
+            <button data-project-id="${escHtml(p.id)}" class="viewBtn bg-blue-500 text-white px-3 py-1 rounded mt-2">View</button>
           </div>
         `).join("");
+
+        projectList.addEventListener("click", (e) => {
+          const btn = e.target.closest("button.viewBtn");
+          if (btn && btn.dataset.projectId) window.viewProject(btn.dataset.projectId);
+        });
       } catch (error) {
         console.error("Error loading projects:", error);
-        projectList.innerHTML = `<p class="text-red-500">Error loading projects. Please refresh the page.</p>`;
+        projectList.innerHTML = `<p class="text-red-500">Failed to load projects. Check your connection and try refreshing.</p>`;
       }
     });
   </script>
