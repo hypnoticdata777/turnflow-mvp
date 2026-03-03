@@ -37,17 +37,25 @@ export function roleHome(role) {
     }
 }
 
-// ✅ NEW: Auth guard function to protect pages
-export async function requireRole(requiredRole) {
-    const user = currentUser();
-    if (!user) {
-        go('index.html');
-        return; // Stop execution
-    }
-    const userRole = await getUserRole(user.uid);
-    if (userRole !== requiredRole) {
-        go(roleHome(userRole) || 'index.html');
-    }
+// Auth guard function to protect pages.
+// Waits for Firebase to resolve the auth session before checking,
+// so a page refresh doesn't falsely redirect a logged-in user.
+export function requireRole(requiredRole) {
+    return new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            unsubscribe(); // Only need the first resolved state
+            if (!user) {
+                go('index.html');
+                return;
+            }
+            const userRole = await getUserRole(user.uid);
+            if (userRole !== requiredRole) {
+                go(roleHome(userRole) || 'index.html');
+                return;
+            }
+            resolve(); // Auth confirmed — caller may proceed
+        });
+    });
 }
 
 
