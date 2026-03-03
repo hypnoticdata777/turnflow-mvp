@@ -47,12 +47,24 @@ TurnFlow is a role-based property turnover management platform. Property manager
 
 ---
 
-### Next Build
+### Completed
 
-- Fix Firebase Hosting structure (`public/` mismatch) so pages deploy correctly
-- Add Content Security Policy headers via `firebase.json`
-- Add auth guards to `stats.html` and `estimate.html`
-- Fix auth race condition in `technician.html` (move project load inside `onAuthStateChanged`)
-- Build a proper read-only client portal page
-- Add login rate limiting after failed attempts
-- Add Firestore cursor-based pagination to the dashboard
+| Fix | File(s) changed |
+|-----|-----------------|
+| Auth race condition — `requireRole` now waits for Firebase to resolve session before redirecting | `public/js/auth.js` |
+| Firebase Hosting `public/` mismatch — hosting root changed to `.` so all HTML pages deploy correctly | `firebase.json` |
+| Auth guards on `stats.html` and `estimate.html` — PM/admin only via new `requireAnyRole` helper | `public/js/auth.js`, `stats.html`, `estimate.html` |
+| Technician photo upload UX — Project/Task text inputs replaced with auto-populated dropdowns | `technician.html` |
+
+---
+
+### Future Build
+
+- **Content Security Policy** — add `"headers"` block to `firebase.json` to lock down script/style sources
+- **Login rate limiting** — lock the login form for N seconds after X consecutive failures; consider Firebase App Check
+- **Firestore pagination** — replace `getAllProjects()` full-collection fetch with cursor-based pages (`startAfter`) on the dashboard
+- **Client portal** — build a proper read-only view for the `client` role (currently redirects to `pending-approval.html` which is a stub)
+- **Project assignment flow** — let PMs assign a technician to a project from the dashboard; currently `assignedTechId` must be set manually in Firestore
+- **Task status granularity** — surface the `overdue` / `blocked` / `inprogress` statuses computed in `script.js` on the technician dashboard too
+- **Subcollection cleanup** — deleting a project does not delete its `tasks/{id}/photos` subcollection; add a Cloud Function or batched delete
+- **PDF improvements** — jsPDF output is plain text; switch to `autotable` plugin for a properly formatted estimate table

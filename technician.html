@@ -51,11 +51,15 @@
 
       <section class="max-w-3xl bg-white p-4 rounded shadow">
         <h2 class="text-xl font-semibold mb-4">Upload Photos</h2>
-        <label class="block mb-2">Project ID
-          <input id="projectId" class="w-full border p-2 rounded" placeholder="e.g. TUR-001" required>
+        <label class="block mb-2">Project
+          <select id="projectId" class="w-full border p-2 rounded bg-white">
+            <option value="">— select a project —</option>
+          </select>
         </label>
-        <label class="block mb-4">Task ID
-          <input id="taskId" class="w-full border p-2 rounded" placeholder="e.g. TAS-001" required>
+        <label class="block mb-4">Task
+          <select id="taskId" class="w-full border p-2 rounded bg-white" disabled>
+            <option value="">— select a task —</option>
+          </select>
         </label>
         <div class="grid md:grid-cols-3 gap-4">
           <div class="border p-3 rounded">
@@ -97,6 +101,31 @@
 
     const u = currentUser();
     const listContainer = document.getElementById('tech-projects');
+    const projectSelect = document.getElementById('projectId');
+    const taskSelect = document.getElementById('taskId');
+
+    // Keyed by Firestore doc ID so the task select can be populated on demand
+    const projectCache = {};
+
+    function populateTaskSelect(projectId) {
+      taskSelect.innerHTML = '<option value="">— select a task —</option>';
+      taskSelect.disabled = true;
+      const tasks = projectCache[projectId]?.tasks || [];
+      tasks.forEach((t, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = t.name || `Task ${i + 1}`;
+        taskSelect.appendChild(opt);
+      });
+      taskSelect.disabled = tasks.length === 0;
+    }
+
+    projectSelect.addEventListener('change', () => {
+      populateTaskSelect(projectSelect.value);
+      // Reset task select and trigger gallery update via the existing technician.js listener
+      taskSelect.value = '';
+      taskSelect.dispatchEvent(new Event('change'));
+    });
 
     async function loadProjectsForTech() {
       if (!u) {
@@ -120,6 +149,13 @@
         listContainer.textContent = '';
         snap.forEach(docSnap => {
           const p = docSnap.data();
+          projectCache[docSnap.id] = p;
+
+          // Populate the upload-section project dropdown
+          const opt = document.createElement('option');
+          opt.value = docSnap.id;
+          opt.textContent = p.projectName || p.name || docSnap.id;
+          projectSelect.appendChild(opt);
 
           // Build task list using safe DOM methods
           const taskList = document.createElement('ul');

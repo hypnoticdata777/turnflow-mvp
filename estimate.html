@@ -10,6 +10,12 @@
 </head>
 
 <body class="bg-gray-100">
+
+  <script type="module">
+    import { requireAnyRole } from './public/js/auth.js';
+    await requireAnyRole(['pm', 'admin']);
+  </script>
+
   <div class="flex">
 
     <div id="sidebar-container"></div>

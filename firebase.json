@@ -3,9 +3,13 @@
     "rules": "firestore.rules"
   },
   "hosting": {
-    "public": "public",
+    "public": ".",
     "ignore": [
       "firebase.json",
+      "firestore.rules",
+      "*.md",
+      "backup_technician/**",
+      "seed.html",
       "**/.*",
       "**/node_modules/**"
     ]

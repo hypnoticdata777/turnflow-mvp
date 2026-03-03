@@ -59,6 +59,26 @@ export function requireRole(requiredRole) {
 }
 
 
+// Like requireRole but accepts an array of permitted roles (e.g. ['pm', 'admin']).
+export function requireAnyRole(allowedRoles) {
+    return new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            unsubscribe();
+            if (!user) {
+                go('index.html');
+                return;
+            }
+            const userRole = await getUserRole(user.uid);
+            if (!allowedRoles.includes(userRole)) {
+                go(roleHome(userRole) || 'index.html');
+                return;
+            }
+            resolve();
+        });
+    });
+}
+
+
 // --- Core Auth Logic ---
 async function login(email, password) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
