@@ -10,44 +10,11 @@ import {
   deleteProject as deleteProjectFromFirestore,
   markTaskComplete as markTaskCompleteInFirestore
 } from './firestore-projects.js';
-import { escHtml } from './utils.js';
+import { escHtml, tf_getTaskStatus, tf_statusLabel, calculateEstimateTotal } from './utils.js';
 
 // --- Global Variables ---
 let taskCount = 0;
 let editingProjectId = null; // Track if we're editing an existing project
-
-// --- Utility & Status Helper Functions ---
-function tf_isValidDate(d) { return d instanceof Date && !isNaN(d); }
-
-function tf_parseDate(value) {
-  if (value instanceof Date) return value;
-  if (typeof value === "number") return new Date(value);
-  const d = new Date(value);
-  return tf_isValidDate(d) ? d : undefined;
-}
-
-// Returns one of: 'completed' | 'overdue' | 'blocked' | 'inprogress' | 'open'
-function tf_getTaskStatus(task) {
-  const now = new Date();
-  if (task?.completed) return "completed";
-  if (task?.blocked) return "blocked";
-  const due = tf_parseDate(task?.dueDate);
-  if (due && due < now) return "overdue";
-  const start = tf_parseDate(task?.startTime);
-  if (start && !task?.endTime) return "inprogress";
-  return "open";
-}
-
-function tf_statusLabel(key) {
-  const labels = {
-    completed: "Completed",
-    overdue: "Overdue",
-    blocked: "Blocked",
-    inprogress: "In Progress",
-    open: "Pending"
-  };
-  return labels[key] || "Pending";
-}
 
 
 // --- Project & Task Functions ---
@@ -86,13 +53,12 @@ function attachLiveCalculation() {
 
 // Calculates the total estimate from all tasks on the page
 function calculateTotal() {
-  let total = 0;
-  document.querySelectorAll("#taskList > div").forEach(task => {
-    const hours = parseFloat(task.querySelector(".laborHours")?.value) || 0;
-    const rate = parseFloat(task.querySelector(".laborRate")?.value) || 0;
-    const materials = parseFloat(task.querySelector(".materialCost")?.value) || 0;
-    total += (hours * rate) + materials;
-  });
+  const tasks = Array.from(document.querySelectorAll("#taskList > div")).map(task => ({
+    hours: task.querySelector(".laborHours")?.value,
+    rate: task.querySelector(".laborRate")?.value,
+    material: task.querySelector(".materialCost")?.value
+  }));
+  const total = calculateEstimateTotal(tasks);
   document.getElementById("totalEstimate").textContent = `$${total.toFixed(2)}`;
 }
 

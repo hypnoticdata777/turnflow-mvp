@@ -47,24 +47,26 @@ TurnFlow is a role-based property turnover management platform. Property manager
 
 ---
 
-### Completed
+### Documentation
 
-| Fix | File(s) changed |
-|-----|-----------------|
-| Auth race condition — `requireRole` now waits for Firebase to resolve session before redirecting | `public/js/auth.js` |
-| Firebase Hosting `public/` mismatch — hosting root changed to `.` so all HTML pages deploy correctly | `firebase.json` |
-| Auth guards on `stats.html` and `estimate.html` — PM/admin only via new `requireAnyRole` helper | `public/js/auth.js`, `stats.html`, `estimate.html` |
-| Technician photo upload UX — Project/Task text inputs replaced with auto-populated dropdowns | `technician.html` |
+Full project workbook lives in [`docs/`](./docs/WORKBOOK.md):
 
----
+| Doc | Purpose |
+|---|---|
+| [`docs/WORKBOOK.md`](./docs/WORKBOOK.md) | Start here — index + project snapshot |
+| [`docs/REQUIREMENTS.md`](./docs/REQUIREMENTS.md) | Functional & Non-Functional Requirements with status |
+| [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | Roles, data model, security rules, file map |
+| [`docs/SETUP.md`](./docs/SETUP.md) | Run, test, seed, deploy |
+| [`docs/ROADMAP.md`](./docs/ROADMAP.md) | Phased plan + scaling path beyond POC |
+| [`docs/DEVLOG.md`](./docs/DEVLOG.md) | Dated log of what changed and why |
 
-### Future Build
+### Testing
 
-- **Content Security Policy** — add `"headers"` block to `firebase.json` to lock down script/style sources
-- **Login rate limiting** — lock the login form for N seconds after X consecutive failures; consider Firebase App Check
-- **Firestore pagination** — replace `getAllProjects()` full-collection fetch with cursor-based pages (`startAfter`) on the dashboard
-- **Client portal** — build a proper read-only view for the `client` role (currently redirects to `pending-approval.html` which is a stub)
-- **Project assignment flow** — let PMs assign a technician to a project from the dashboard; currently `assignedTechId` must be set manually in Firestore
-- **Task status granularity** — surface the `overdue` / `blocked` / `inprogress` statuses computed in `script.js` on the technician dashboard too
-- **Subcollection cleanup** — deleting a project does not delete its `tasks/{id}/photos` subcollection; add a Cloud Function or batched delete
-- **PDF improvements** — jsPDF output is plain text; switch to `autotable` plugin for a properly formatted estimate table
+```bash
+npm install
+npm test
+```
+
+Unit tests cover the pure business logic in `public/js/utils.js` (task
+status derivation, cost calculation, HTML escaping). CI runs this on every
+push/PR to `main` (`.github/workflows/ci.yml`).
