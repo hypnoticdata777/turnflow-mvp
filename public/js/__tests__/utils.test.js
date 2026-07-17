@@ -7,7 +7,8 @@ import {
   tf_isValidDate,
   calculateEstimateTotal,
   formatUserLabel,
-  assignedTechLabel
+  assignedTechLabel,
+  assignedClientLabel
 } from '../utils.js';
 
 describe('escHtml', () => {
@@ -157,5 +158,27 @@ describe('assignedTechLabel', () => {
 
   it('defaults the tech list to empty', () => {
     expect(assignedTechLabel({ assignedTechId: 'tech-1' })).toBe('Unknown (tech-1)');
+  });
+});
+
+describe('assignedClientLabel', () => {
+  const clients = [{ uid: 'client-1', name: 'Maria Felix' }];
+
+  it('returns Unassigned when no clientId is set', () => {
+    expect(assignedClientLabel({}, clients)).toBe('Unassigned');
+  });
+
+  it('resolves the assigned client to their display label', () => {
+    expect(assignedClientLabel({ clientId: 'client-1' }, clients)).toBe('Maria Felix');
+  });
+
+  it('falls back to a placeholder when the client is not in the provided list', () => {
+    expect(assignedClientLabel({ clientId: 'ghost' }, clients)).toBe('Unknown (ghost)');
+  });
+
+  it('does not confuse tech and client assignment fields', () => {
+    const project = { assignedTechId: 'tech-1', clientId: 'client-1' };
+    expect(assignedClientLabel(project, clients)).toBe('Maria Felix');
+    expect(assignedClientLabel(project, [{ uid: 'tech-1', name: 'Jamie Rivera' }])).toBe('Unknown (client-1)');
   });
 });

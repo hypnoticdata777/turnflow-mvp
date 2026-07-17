@@ -3,68 +3,104 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pending Approval - TurnFlow™</title>
+  <title>Client Portal - TurnFlow™</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script type="module" src="public/js/script.js"></script>
+  <base href="./">
 </head>
 
 <body class="bg-gray-100">
-  <div class="flex">
-
-    <div id="sidebar-container"></div>
-
-    <div class="flex-1 p-6">
-      <header class="flex justify-end mb-4">
-        <button id="logoutBtn" class="px-3 py-1 border rounded">Logout</button>
-      </header>
-
-      <h1 class="text-3xl font-bold mb-6">⏳ Projects Pending Approval</h1>
-      <div id="projectList" class="space-y-4"></div>
-    </div>
-  </div>
 
   <script type="module">
-    import { getProjectsByStatus } from './public/js/firestore-projects.js';
-    import { escHtml } from './public/js/utils.js';
+    import { requireRole } from './public/js/auth.js';
+    await requireRole('client'); // if not client or not logged in -> redirected
+  </script>
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      const projectList = document.getElementById("projectList");
-      projectList.innerHTML = `<p class="text-gray-500">Loading…</p>`;
-
-      try {
-        const filtered = await getProjectsByStatus("Pending Approval");
-
-        if (filtered.length === 0) {
-          projectList.innerHTML = `<p class="text-gray-500">No projects pending approval.</p>`;
-          return;
-        }
-
-        projectList.innerHTML = filtered.map(p => `
-          <div class="border p-4 rounded bg-white shadow">
-            <h2 class="text-xl font-semibold">${escHtml(p.projectName)}</h2>
-            <p><strong>Owner:</strong> ${escHtml(p.owner)}</p>
-            <p><strong>Address:</strong> ${escHtml(p.address)}, Unit ${escHtml(p.unit)}</p>
-            <p><strong>Target Date:</strong> ${escHtml(p.date)}</p>
-            <button data-project-id="${escHtml(p.id)}" class="viewBtn bg-blue-500 text-white px-3 py-1 rounded mt-2">View</button>
-          </div>
-        `).join("");
-
-        projectList.addEventListener("click", (e) => {
-          const btn = e.target.closest("button.viewBtn");
-          if (btn && btn.dataset.projectId) window.viewProject(btn.dataset.projectId);
-        });
-      } catch (error) {
-        console.error("Error loading projects:", error);
-        projectList.innerHTML = `<p class="text-red-500">Failed to load projects. Check your connection and try refreshing.</p>`;
-      }
+  <script type="module">
+    import { currentUser, logout } from './public/js/auth.js';
+    document.addEventListener('DOMContentLoaded', () => {
+      const u = currentUser();
+      const hdr = document.createElement('header');
+      hdr.className = 'w-full bg-white border-b p-3 flex items-center justify-between sticky top-0 z-50';
+      hdr.innerHTML = `
+        <div class="font-semibold">TurnFlow™ — Client Portal</div>
+        <div class="text-sm flex items-center gap-3">
+          <span class="text-gray-600">${u?.email ?? ''}</span>
+          <button id="tf-logout" class="px-3 py-1 rounded bg-gray-800 text-white">Logout</button>
+        </div>
+      `;
+      document.body.prepend(hdr);
+      document.getElementById('tf-logout')?.addEventListener('click', async () => { await logout(); });
     });
   </script>
 
-  <script type="module" src="public/js/firebase-config.js"></script>
-  <script type="module" src="public/js/auth.js"></script>
+  <main class="max-w-4xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-2">Your Projects</h1>
+    <p class="text-gray-500 mb-6">Read-only view of the properties shared with you and their approval status.</p>
+    <div id="projectList" class="space-y-4"></div>
+  </main>
+
   <script type="module">
-    import { logout } from "./public/js/auth.js";
-    document.getElementById("logoutBtn")?.addEventListener("click", logout);
+    import { currentUser } from './public/js/auth.js';
+    import { getProjectsForClient } from './public/js/firestore-projects.js';
+    import { escHtml, tf_getTaskStatus, tf_statusLabel, calculateEstimateTotal } from './public/js/utils.js';
+
+    const projectList = document.getElementById('projectList');
+
+    function statusBadgeClasses(status) {
+      switch (status) {
+        case 'Approved': return 'bg-green-100 text-green-800';
+        case 'Sent': return 'bg-blue-100 text-blue-800';
+        case 'Completed': return 'bg-gray-200 text-gray-800';
+        default: return 'bg-yellow-100 text-yellow-800'; // Pending Approval / anything else
+      }
+    }
+
+    async function loadProjects() {
+      const u = currentUser();
+      if (!u) return; // requireRole('client') above already redirects unauthenticated users
+
+      projectList.innerHTML = '<p class="text-gray-500">Loading…</p>';
+
+      try {
+        const projects = await getProjectsForClient(u.uid);
+
+        if (projects.length === 0) {
+          projectList.innerHTML = '<p class="text-gray-500">No projects have been shared with you yet.</p>';
+          return;
+        }
+
+        projectList.innerHTML = projects.map((p) => {
+          const total = calculateEstimateTotal(p.tasks || []);
+          const taskRows = (p.tasks || []).map((t) => {
+            const key = tf_getTaskStatus(t);
+            const label = tf_statusLabel(key);
+            return `
+              <li class="flex justify-between items-center border-t py-1.5 text-sm">
+                <span>${escHtml(t.name)}</span>
+                <span class="tf-badge" data-status="${escHtml(key)}">${escHtml(label)}</span>
+              </li>`;
+          }).join("");
+
+          return `
+            <div class="border p-4 rounded bg-white shadow">
+              <div class="flex justify-between items-start">
+                <h2 class="text-xl font-semibold">${escHtml(p.projectName)}</h2>
+                <span class="text-xs font-medium px-2 py-1 rounded-full ${statusBadgeClasses(p.status)}">${escHtml(p.status || 'Pending Approval')}</span>
+              </div>
+              <p class="text-sm mt-1"><strong>Address:</strong> ${escHtml(p.address)}${p.unit ? ', Unit ' + escHtml(p.unit) : ''}</p>
+              <p class="text-sm"><strong>Target Date:</strong> ${escHtml(p.date)}</p>
+              <p class="text-sm"><strong>Estimate Total:</strong> $${total.toFixed(2)}</p>
+              <h3 class="mt-3 font-semibold text-sm">Tasks</h3>
+              <ul class="mt-1">${taskRows || '<li class="text-sm text-gray-500 py-1.5">No tasks listed.</li>'}</ul>
+            </div>`;
+        }).join("");
+      } catch (error) {
+        console.error('Error loading client projects:', error);
+        projectList.innerHTML = '<p class="text-red-500">Failed to load your projects. Check your connection and try refreshing.</p>';
+      }
+    }
+
+    loadProjects();
   </script>
 </body>
 </html>

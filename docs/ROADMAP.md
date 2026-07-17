@@ -42,15 +42,20 @@ now "client" is a stub, which is the single most visible gap in any demo.
       surfaced that `dashboard.html`/`backup.html`/`contacts.html`/
       `pending-send.html` had no page-level role guard at all — fixed as
       part of the same change (NFR1).
-- [ ] **FR6 — Real client portal.** `pending-approval.html` needs a
-      Firestore query scoped to the client's own project(s) (likely via a
-      `clientId` or `contactId` field on `projects`), read-only status
-      display, and a `client` rule in `firestore.rules` restricting reads
-      to `resource.data.clientId == request.auth.uid` instead of "any
-      authenticated user." **This is the next Phase 1 item.**
+- [x] **FR6 — Real client portal.** (done 2026-07-12) `pending-approval.html`
+      rebuilt as the `client` role's home page: read-only cards scoped to
+      `getProjectsForClient(uid)`, matching a new `clientId` field on
+      `projects`. PM assigns portal access from a new dropdown on
+      `dashboard.html` (reused the FR5 pattern/helpers). `firestore.rules`
+      now restricts `projects` reads for the `client` role to
+      `resource.data.clientId == request.auth.uid`; PM/Admin/Tech reads are
+      unchanged. The stale "Pending Approval" nav link was removed from the
+      shared PM sidebar since the destination is now client-only.
 - [ ] **FR7 — Status lifecycle UI.** Buttons/actions to move a project
       through Pending Approval → Approved → Sent → Completed, not just a
-      value set once at creation.
+      value set once at creation. **This is the next Phase 1 item** — the
+      client portal now displays `status` with a badge, but nothing in the
+      UI moves a project between statuses yet.
 
 Resolve the task-identity quirk noted in `ARCHITECTURE.md` (tasks as an
 embedded array vs. photos keyed by array-index-as-string) *before* or
