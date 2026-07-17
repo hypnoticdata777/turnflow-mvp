@@ -145,6 +145,30 @@ export async function getProjectsByStatus(status) {
 }
 
 /**
+ * Get projects shared with a given client (matches the clientId field set
+ * by a PM/Admin from the dashboard's client-assignment dropdown).
+ * @param {string} clientId - The client's Firebase Auth uid
+ * @returns {Promise<Array>} Array of projects
+ */
+export async function getProjectsForClient(clientId) {
+  try {
+    const q = query(projectsCollection, where('clientId', '==', clientId));
+    const querySnapshot = await getDocs(q);
+    const projects = [];
+    querySnapshot.forEach((doc) => {
+      projects.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    return projects;
+  } catch (error) {
+    console.error("Error getting projects for client:", error);
+    throw error;
+  }
+}
+
+/**
  * Mark a task as complete within a project
  * @param {string} projectId - The project ID
  * @param {number} taskIndex - The index of the task to mark complete

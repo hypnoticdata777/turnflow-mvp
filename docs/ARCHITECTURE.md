@@ -29,7 +29,7 @@ story. See `ROADMAP.md` for when this stops being the right tradeoff.
 | `pm` | `dashboard.html` | Create, edit, delete projects; manage contacts; backup data |
 | `admin` | `dashboard.html` | Everything `pm` can do, plus write access to `users/{uid}` docs |
 | `tech` | `technician.html` | View only assigned projects; upload before/after/receipt photos |
-| `client` | `pending-approval.html` (stub) | Intended: read-only view of their own project's approval status |
+| `client` | `pending-approval.html` | Read-only view of projects explicitly shared with them (`clientId`) — status, tasks, estimate total |
 
 Role is stored at `users/{uid}.role` in Firestore and set manually via the
 Firebase console today (see `SETUP.md`). `roleHome(role)` in `auth.js` is
@@ -47,8 +47,8 @@ errors on write instead of a clean redirect. `dashboard.html`,
 `backup.html`, `contacts.html`, and `pending-send.html` were found to be
 missing this guard as of 2026-07-12 and have since been fixed — see
 `DEVLOG.md`. `pending-approval.html` intentionally has no `pm`/`admin`
-guard (it's also the `client` role's home page) but is still a stub — see
-Roadmap Phase 1 / FR6.
+guard — it calls `requireRole('client')` instead, since it's the real
+`client`-role portal (FR6), not a PM page.
 
 ## Data model (Firestore)
 
@@ -58,7 +58,7 @@ users/{uid}
   email?, name?          // hand-entered; see SETUP.md — no client-SDK sync from Firebase Auth
 
 projects/{projectId}
-  projectName, address, unit, owner, date, status, assignedTechId?
+  projectName, address, unit, owner, date, status, assignedTechId?, clientId?
   tasks: [
     { name, hours, rate, material, completed, dueDate?, startTime?, endTime?, blocked? }
   ]
@@ -71,6 +71,21 @@ projects/{projectId}
 contacts/{contactId}
   (owner/client contact fields)
 ```
+
+**Design note: `clientId` vs. `contacts`.** `contacts` (name/email/phone/
+property) and `clientId` (a Firebase Auth uid granting portal login access)
+are two separate, currently-unlinked concepts. A contact record does not
+imply that person has — or should have — a login. This was a deliberate
+scope decision for FR6: merging them (e.g. "creating a contact optionally
+creates a client login") is real product design work (invite flow, email
+verification, matching an existing contact to an existing Auth account)
+that would have expanded this from "give clients a working portal" into
+"build an invite system." A PM assigns portal access explicitly per
+project via the dashboard's "Client Portal Access" dropdown, the same
+pattern as technician assignment (FR5). Revisit merging the two models
+once there's a real need for clients to self-serve their own contact
+info, or for one client login to see multiple properties without a PM
+manually granting each one.
 
 **Known modeling quirk worth flagging:** `tasks` on a project is an
 *embedded array* (no task-level document IDs), but photos live in a
@@ -93,9 +108,9 @@ turnflow/{projectId}/{taskId}/{type}/{uid}/{timestamp}_{filename}
 
 `firestore.rules` enforces role checks server-side (not just in the UI):
 
-- `users/{userId}`: read your own doc, or any user doc if you're `pm`/`admin` (needed so PMs can list technicians for assignment — see `firestore-users.js`); write only if `admin`.
-- `projects/{projectId}`: read if authenticated; write (`create`/`update`/`delete`) only if `pm`/`admin`.
-- `projects/{projectId}/tasks/{taskId}/photos/{photoId}`: read if authenticated; create only by the `tech` whose `uid` matches `techId` on the doc; update/delete only `admin`.
+- `users/{userId}`: read your own doc, or any user doc if you're `pm`/`admin` (needed so PMs can list technicians/clients for assignment — see `firestore-users.js`); write only if `admin`.
+- `projects/{projectId}`: read if authenticated **and** (not a `client`, or `resource.data.clientId == request.auth.uid`) — `pm`/`admin`/`tech` read any project, `client` only reads projects explicitly shared with them; write (`create`/`update`/`delete`) only if `pm`/`admin`.
+- `projects/{projectId}/tasks/{taskId}/photos/{photoId}`: read if authenticated (not currently `clientId`-scoped — see NFR1 residual gap in `REQUIREMENTS.md`); create only by the `tech` whose `uid` matches `techId` on the doc; update/delete only `admin`.
 - `contacts/{contactId}`: read if authenticated; write only `pm`/`admin`.
 
 **Gap:** there is no `storage.rules` file in this repo and `firebase.json`
@@ -114,7 +129,7 @@ index.html              Login page
 dashboard.html           PM/Admin: project list, task completion, delete
 new-project.html         PM/Admin: create/edit project + tasks
 estimate.html            View a single project's estimate (PDF export)
-pending-approval.html    Client stub (Roadmap Phase 1 target)
+pending-approval.html    Client portal: read-only, clientId-scoped project status view (FR6)
 pending-send.html        PM: send-for-approval flow
 contacts.html            PM/Admin: contacts CRUD
 technician.html          Tech: assigned projects, photo upload, gallery
@@ -126,9 +141,9 @@ seed.html                 Dev tool: seed one sample project as current tech user
 public/js/
   firebase-config.js      Firebase SDK init (auth, db) — one hardcoded project
   auth.js                 Login, logout, role routing, requireRole/requireAnyRole guards
-  firestore-projects.js   Project CRUD
+  firestore-projects.js   Project CRUD + getProjectsByStatus/getProjectsForClient
   firestore-contacts.js   Contact CRUD
-  firestore-users.js      Read-only user lookups (e.g. getUsersByRole('tech'))
+  firestore-users.js      Read-only user lookups (e.g. getUsersByRole('tech'|'client'))
   script.js               Dashboard/new-project/stats page logic, DOM wiring
   technician.js            Photo upload + gallery logic
   utils.js                Pure helpers: escHtml, task status derivation, cost calc

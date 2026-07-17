@@ -23,6 +23,10 @@ service cloud.firestore {
       return isAuthed() && getRole() == 'tech';
     }
 
+    function isClient() {
+      return isAuthed() && getRole() == 'client';
+    }
+
     // ── Users ─────────────────────────────────────────────────────────────
     // Users can read their own profile; PM/Admin can also read any user doc
     // (needed to list technicians for project assignment). Only admins write.
@@ -32,10 +36,13 @@ service cloud.firestore {
     }
 
     // ── Projects ──────────────────────────────────────────────────────────
-    // Any authenticated user can read projects.
+    // PM/Admin/Tech can read any project (tech-side filtering to "my
+    // projects" happens client-side in technician.html). Clients can only
+    // read a project that has been explicitly shared with them via
+    // clientId — otherwise every client could read every property's data.
     // Only PM or Admin can create, update, or delete projects.
     match /projects/{projectId} {
-      allow read: if isAuthed();
+      allow read: if isAuthed() && (!isClient() || resource.data.clientId == request.auth.uid);
       allow create: if isPMorAdmin();
       allow update: if isPMorAdmin();
       allow delete: if isPMorAdmin();

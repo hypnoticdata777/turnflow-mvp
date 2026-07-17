@@ -7,6 +7,44 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 1: real client portal (FR6)
+
+- **Rebuilt** `pending-approval.html` from a PM-facing, unscoped "all
+  Pending Approval projects" list into the actual `client` role's portal:
+  guarded by `requireRole('client')`, custom minimal header (no PM
+  sidebar), read-only project cards (status badge, task list, estimate
+  total) scoped to the logged-in client only. (FR6 ✅)
+- **Added:** `clientId` field on `projects`, set by a PM from a new
+  "Client Portal Access" dropdown on `dashboard.html` — same UX pattern
+  as FR5's technician-assignment dropdown, and reuses the same
+  `getUsersByRole()`/`formatUserLabel()` building blocks (added
+  `getProjectsForClient()` to `firestore-projects.js` and
+  `assignedClientLabel()` to `utils.js`, refactored alongside
+  `assignedTechLabel()` to share one `resolveAssignedLabel()` instead of
+  duplicating the lookup logic). 4 new unit tests, 31 total passing.
+- **Changed rule:** `firestore.rules` — added `isClient()` helper;
+  `projects/{projectId}` read is now `isAuthed() && (!isClient() ||
+  resource.data.clientId == request.auth.uid)`. PM/Admin/Tech reads are
+  unchanged; a `client` can now only read a project explicitly shared
+  with them, enforced server-side, not just hidden in the UI.
+- **Cleanup:** removed the "⏳ Pending Approval" link from the shared PM
+  sidebar (`public/components/sidebar.html`) — that destination is now
+  client-only, so a PM clicking it would just bounce back to their own
+  dashboard.
+- **Found, documented, not yet fixed:** the `tasks/{taskId}/photos/{photoId}`
+  subcollection rule still allows any authenticated user to read
+  regardless of `clientId` — no current UI exposes this to a client, but
+  it's not enforced at the rule layer if someone queries it directly.
+  Tracked as a residual NFR1 gap for Phase 2 alongside the still-missing
+  Storage rules.
+- **Design call documented (not built):** `contacts` (name/email/phone)
+  and `clientId` (Firebase Auth login) are deliberately kept as separate,
+  unlinked concepts for now — see `ARCHITECTURE.md`. Building an
+  invite/self-serve flow that merges them is real scope on its own, not
+  something to fold silently into FR6.
+
+---
+
 ### 2026-07-12 — Phase 1: technician assignment UI, plus a page-guard gap found along the way
 
 - **Added:** PM dashboard can now assign a technician to a project from a

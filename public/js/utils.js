@@ -80,12 +80,22 @@ export function formatUserLabel(user) {
 }
 
 /**
- * Finds the display label for a project's assignedTechId within a list of
- * tech users, or a fallback string if unassigned/not found.
+ * Resolves a uid against a list of user docs to a display label, or a
+ * fallback if unassigned/not found. Shared by the tech-assignment and
+ * client-assignment dropdowns on the PM dashboard.
  */
+function resolveAssignedLabel(uid, users = []) {
+  if (!uid) return 'Unassigned';
+  const match = users.find(u => u.uid === uid);
+  return match ? formatUserLabel(match) : `Unknown (${uid})`;
+}
+
+/** Display label for a project's assignedTechId within a list of tech users. */
 export function assignedTechLabel(project, techUsers = []) {
-  const techId = project?.assignedTechId;
-  if (!techId) return 'Unassigned';
-  const match = techUsers.find(u => u.uid === techId);
-  return match ? formatUserLabel(match) : `Unknown (${techId})`;
+  return resolveAssignedLabel(project?.assignedTechId, techUsers);
+}
+
+/** Display label for a project's clientId within a list of client users. */
+export function assignedClientLabel(project, clientUsers = []) {
+  return resolveAssignedLabel(project?.clientId, clientUsers);
 }

@@ -28,6 +28,14 @@ If you stand up your own Firebase project, replace the values there.
    - `email` and/or `name` — optional, but **required in practice for `tech` users** if you want the PM dashboard's technician-assignment dropdown to show something more useful than a raw uid. The client SDK cannot call Firebase Auth's `listUsers()` (that's admin-only), so there is no automatic way to sync the Auth email into this doc — you have to type it in by hand today. See `ARCHITECTURE.md` for the tradeoff.
 3. Log in via `index.html` — you'll land on that role's home page (`roleHome()` in `auth.js`).
 
+### Test the client portal
+
+1. Create a `client`-role user as above (steps 1–2).
+2. Log in as a `pm`/`admin` user, go to `dashboard.html`, and on any project use the **Client Portal Access** dropdown to assign that client (writes `clientId` on the project).
+3. Log in as the client — `pending-approval.html` now shows only that project, read-only, with its status and task list.
+
+Firestore rules enforce this scoping server-side (`clientId == request.auth.uid`) — a client cannot read a project that hasn't been assigned to them, even by guessing/typing a project ID directly against the SDK.
+
 ### Seed sample data
 
 `seed.html` creates one sample project assigned to whichever `tech` user is
