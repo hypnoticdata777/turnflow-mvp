@@ -51,11 +51,18 @@ now "client" is a stub, which is the single most visible gap in any demo.
       `resource.data.clientId == request.auth.uid`; PM/Admin/Tech reads are
       unchanged. The stale "Pending Approval" nav link was removed from the
       shared PM sidebar since the destination is now client-only.
-- [ ] **FR7 — Status lifecycle UI.** Buttons/actions to move a project
-      through Pending Approval → Approved → Sent → Completed, not just a
-      value set once at creation. **This is the next Phase 1 item** — the
-      client portal now displays `status` with a badge, but nothing in the
-      UI moves a project between statuses yet.
+- [x] **FR7 — Status lifecycle UI.** (done 2026-07-12) PM dashboard got a
+      status dropdown per project (free transition between all 4 statuses,
+      not a strict state machine — correcting a mistake shouldn't require
+      a console edit). `pending-send.html` also got a dedicated "Mark as
+      Sent" button, since that page's entire purpose is the
+      Approved → Sent step. Added `PROJECT_STATUSES` and
+      `projectStatusBadgeClasses()` to `utils.js` as the shared,
+      unit-tested source of truth for valid statuses and their badge
+      styling — reused by both the dashboard and the client portal so the
+      two views can't drift out of sync on what a status looks like.
+
+**Phase 1 is now complete** (FR5, FR6, FR7 all ✅). Moving to Phase 2.
 
 Resolve the task-identity quirk noted in `ARCHITECTURE.md` (tasks as an
 embedded array vs. photos keyed by array-index-as-string) *before* or

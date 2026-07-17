@@ -21,8 +21,9 @@ this order the first time; after that, jump to whichever doc you need.
 ## Project snapshot (as of 2026-07-12)
 
 - **Stage:** POC / MVP — single Firebase project, no environment separation, no build step.
-- **Roles implemented:** PM/Admin (full), Technician (full), Client (stub only — see `ROADMAP.md` Phase 1).
-- **Test coverage:** Pure logic (task status, cost calc, HTML escaping) covered by Vitest. No integration/rules tests yet.
+- **Roles implemented:** PM/Admin (full), Technician (full), Client (full — real portal, `clientId`-scoped both in the UI and in `firestore.rules`).
+- **Phase 1 (persona + lifecycle gaps) is complete:** technician assignment (FR5), client portal (FR6), and project status lifecycle (FR7) all shipped. Next up is Phase 2 hardening — see `ROADMAP.md`.
+- **Test coverage:** Pure logic (task status, cost calc, HTML escaping, assignment/status helpers) covered by Vitest — 34 tests. No integration/rules tests yet.
 - **CI:** GitHub Actions runs `npm test` on push/PR to `main`.
 - **Known debt:** see `REQUIREMENTS.md` status column and `ROADMAP.md` Phase 2/3 for the hardening and polish backlog.
 

@@ -42,18 +42,9 @@
   <script type="module">
     import { currentUser } from './public/js/auth.js';
     import { getProjectsForClient } from './public/js/firestore-projects.js';
-    import { escHtml, tf_getTaskStatus, tf_statusLabel, calculateEstimateTotal } from './public/js/utils.js';
+    import { escHtml, tf_getTaskStatus, tf_statusLabel, calculateEstimateTotal, projectStatusBadgeClasses } from './public/js/utils.js';
 
     const projectList = document.getElementById('projectList');
-
-    function statusBadgeClasses(status) {
-      switch (status) {
-        case 'Approved': return 'bg-green-100 text-green-800';
-        case 'Sent': return 'bg-blue-100 text-blue-800';
-        case 'Completed': return 'bg-gray-200 text-gray-800';
-        default: return 'bg-yellow-100 text-yellow-800'; // Pending Approval / anything else
-      }
-    }
 
     async function loadProjects() {
       const u = currentUser();
@@ -85,7 +76,7 @@
             <div class="border p-4 rounded bg-white shadow">
               <div class="flex justify-between items-start">
                 <h2 class="text-xl font-semibold">${escHtml(p.projectName)}</h2>
-                <span class="text-xs font-medium px-2 py-1 rounded-full ${statusBadgeClasses(p.status)}">${escHtml(p.status || 'Pending Approval')}</span>
+                <span class="text-xs font-medium px-2 py-1 rounded-full ${projectStatusBadgeClasses(p.status)}">${escHtml(p.status || 'Pending Approval')}</span>
               </div>
               <p class="text-sm mt-1"><strong>Address:</strong> ${escHtml(p.address)}${p.unit ? ', Unit ' + escHtml(p.unit) : ''}</p>
               <p class="text-sm"><strong>Target Date:</strong> ${escHtml(p.date)}</p>

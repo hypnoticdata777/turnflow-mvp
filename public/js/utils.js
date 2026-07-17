@@ -99,3 +99,20 @@ export function assignedTechLabel(project, techUsers = []) {
 export function assignedClientLabel(project, clientUsers = []) {
   return resolveAssignedLabel(project?.clientId, clientUsers);
 }
+
+/**
+ * A project's lifecycle, in order. Not enforced as a strict state machine —
+ * a PM can set any project to any status (e.g. to correct a mistake) — but
+ * this is the intended forward path and the canonical list of valid values.
+ */
+export const PROJECT_STATUSES = ['Pending Approval', 'Approved', 'Sent', 'Completed'];
+
+/** Tailwind classes for a project-status badge. Shared by dashboard.html (PM) and pending-approval.html (client). */
+export function projectStatusBadgeClasses(status) {
+  switch (status) {
+    case 'Approved': return 'bg-green-100 text-green-800';
+    case 'Sent': return 'bg-blue-100 text-blue-800';
+    case 'Completed': return 'bg-gray-200 text-gray-800';
+    default: return 'bg-yellow-100 text-yellow-800'; // Pending Approval / anything else
+  }
+}

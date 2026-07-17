@@ -7,6 +7,38 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 1: project status lifecycle UI (FR7) — Phase 1 complete
+
+- **Added:** PM dashboard now has a per-project **Status** dropdown
+  (Pending Approval / Approved / Sent / Completed) that writes `status`
+  via `updateProject()` — reused the exact same `.assignSelect` /
+  `data-field` change handler already built for FR5/FR6's assignment
+  dropdowns, so no new event-handling logic was needed, just a new
+  `<select>` in the template. (FR7 ✅)
+- **Added:** `pending-send.html` — whose entire purpose is surfacing
+  projects ready for the Approved → Sent step — got a one-click **Mark as
+  Sent** button instead of only a "View" link. On success it re-runs the
+  page's query (the project no longer matches `status == "Approved"`, so
+  it drops off the list immediately).
+- **Added to `utils.js` (shared, tested):** `PROJECT_STATUSES` (the
+  canonical 4-value lifecycle array) and `projectStatusBadgeClasses()`
+  (color classes per status). Deliberately **not** a strict state
+  machine — the dashboard dropdown allows any status → any status, since
+  a PM correcting a mis-click shouldn't need a Firestore console edit.
+  3 new tests, 34 total passing.
+- **Deduplicated:** `pending-approval.html` had its own inline
+  `statusBadgeClasses()` copy from the FR6 pass a few hours earlier — that
+  local copy is gone, both pages now import the same function from
+  `utils.js`. This is the kind of drift the workbook's "don't duplicate
+  status-badge logic across pages" concern in `ARCHITECTURE.md` exists to
+  catch; catching and fixing it same-day is the system working as
+  intended, not a mistake being covered up.
+- **Phase 1 is now fully closed** (FR5 tech assignment, FR6 client portal,
+  FR7 status lifecycle). See `ROADMAP.md` — Phase 2 hardening
+  (Storage rules, CSP, cascading delete, pagination) is next.
+
+---
+
 ### 2026-07-12 — Phase 1: real client portal (FR6)
 
 - **Rebuilt** `pending-approval.html` from a PM-facing, unscoped "all
