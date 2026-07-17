@@ -7,6 +7,35 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 2: CSP + security headers (NFR2)
+
+- **Added:** `Content-Security-Policy` (plus `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`) to `firebase.json`'s
+  `hosting.headers`, applied to every response.
+- **Investigated first, then asked before implementing:** checked how
+  many inline `<script type="module">` blocks exist across the app
+  (~25, across 12 of 12 HTML pages) before writing the CSP, because a
+  real `script-src` lockdown (no `'unsafe-inline'`) would break every one
+  of them today. Rather than silently pick between "ship a weak/
+  theatrical CSP" and "refactor every page's inline scripts into
+  external files without being able to browser-test the result here,"
+  surfaced the tradeoff and asked — chose the pragmatic option: allowlist
+  the 4 real external script hosts (`cdn.tailwindcss.com`,
+  `www.gstatic.com`, `cdnjs.cloudflare.com`, `cdn.jsdelivr.net`), lock
+  down `frame-ancestors`/`object-src`/`base-uri`/`form-action` fully (no
+  exceptions needed there), but keep `'unsafe-inline'` on `script-src`/
+  `style-src` since the current architecture requires it.
+- **What this actually buys:** blocks arbitrary third-party script/
+  resource loading from any host not on the allowlist, and closes
+  clickjacking/embedding/base-tag-injection vectors completely. **What it
+  does not do:** stop an XSS payload injected as an inline `<script>` tag
+  from executing — that specific protection requires the inline-script
+  extraction refactor, tracked as a named follow-up in `ROADMAP.md`/
+  `REQUIREMENTS.md`, not silently dropped.
+- No code/test changes — headers + docs only. 34/34 tests still passing.
+
+---
+
 ### 2026-07-12 — Phase 2: Storage rules (NFR1) — first Phase 2 item
 
 - **Added:** `storage.rules` — the biggest unreviewed security gap called

@@ -85,7 +85,21 @@ Goal: safe to point at from outside your own laptop.
       and in the parallel Firestore photos-subcollection rule) still
       isn't `clientId`-scoped — tracked as a residual NFR1 item, to fix
       in one pass across both rule files so they don't disagree.
-- [ ] **NFR2 — CSP headers** in `firebase.json`'s `hosting.headers`.
+- [x] **NFR2 — CSP headers.** (done 2026-07-12, partial by deliberate
+      choice) Added to `firebase.json`'s `hosting.headers`: `script-src`
+      allowlists only the 4 hosts the app actually loads from,
+      `frame-ancestors`/`object-src`/`base-uri`/`form-action` are fully
+      locked down, plus `X-Content-Type-Options`/`X-Frame-Options`/
+      `Referrer-Policy`. **Deliberately not maximal:** `script-src`/
+      `style-src` still allow `'unsafe-inline'` because every page has
+      inline `<script type="module">` blocks and Tailwind's CDN injects
+      runtime CSS — closing that for real means extracting ~25 inline
+      script blocks across 12 HTML files into external `.js` files
+      first. Chose the pragmatic header now over a half-verified
+      multi-file refactor with no live browser here to test each page
+      afterward — see `ARCHITECTURE.md`'s CSP section. **Follow-up: if
+      that refactor happens, tighten `script-src`/`style-src` to drop
+      `'unsafe-inline'` in the same pass.**
 - [ ] **NFR3 — Login rate limiting / App Check.**
 - [ ] **FR13 / NFR8 — Cascading delete** for `tasks/{id}/photos` and
       their Storage objects when a project is deleted. A Cloud Function

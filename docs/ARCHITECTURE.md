@@ -134,6 +134,34 @@ This closes the biggest half of NFR1's Storage gap. What's still open:
 the read-side `clientId` scoping (tracked above) and rate limiting/App
 Check (NFR3, still Phase 2 todo).
 
+## Content Security Policy (NFR2)
+
+`firebase.json`'s `hosting.headers` sets a CSP on every response (plus
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`). It's a
+**pragmatic** CSP, not a maximal one, and that tradeoff was a deliberate
+call rather than an accident — worth understanding before touching it:
+
+- `script-src` allowlists exactly the four external hosts the app
+  actually loads from (`cdn.tailwindcss.com`, `www.gstatic.com`,
+  `cdnjs.cloudflare.com` for jsPDF, `cdn.jsdelivr.net` for Chart.js) —
+  arbitrary third-party script injection from anywhere else is blocked.
+- `script-src` and `style-src` both still need `'unsafe-inline'`. Every
+  page has 1–3 inline `<script type="module">` blocks carrying real
+  logic (auth guards, DOM wiring — see `SETUP.md`/`ROADMAP.md`), and the
+  Tailwind Play CDN script injects its generated CSS via a runtime
+  `<style>` tag. Dropping `'unsafe-inline'` today would break every page.
+  Closing this gap for real means extracting all inline module scripts
+  into external `.js` files first — a ~25-block refactor across 12 HTML
+  files, deliberately deferred rather than done half-verified (no live
+  browser in this environment to click through each page afterward).
+  **This is the actual remaining edge of NFR2** — the header exists, but
+  it isn't blocking script injection the way a CSP ideally would.
+- `connect-src`/`img-src` allow `https://*.googleapis.com` (Firestore,
+  Auth, Storage all resolve under this) plus `data:` for `img-src`.
+- `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`,
+  `form-action 'self'` are all fully enforced with no exceptions — these
+  don't conflict with anything the app does today.
+
 ## File map
 
 ```
