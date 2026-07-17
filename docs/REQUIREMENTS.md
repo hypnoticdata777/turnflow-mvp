@@ -10,7 +10,7 @@ Status legend: ✅ Done · 🟡 Partial · ⬜ Not started
 | FR2 | System computes and displays a live cost estimate per project (labor + materials). | ✅ | `calculateEstimateTotal()` in `utils.js`, unit tested |
 | FR3 | Technicians can view only projects assigned to them and mark individual tasks complete. | ✅ | `technician.html` queries `where('assignedTechId', '==', uid)` |
 | FR4 | Technicians can upload before/after/receipt photos per task, viewable in a gallery scoped to that task. | ✅ | `technician.js`, Firebase Storage |
-| FR5 | PM/Admin can assign a technician to a project via UI. | ⬜ | Currently `assignedTechId` must be hand-edited in the Firestore console — see Roadmap Phase 1 |
+| FR5 | PM/Admin can assign a technician to a project via UI. | ✅ | Dashboard dropdown (`dashboard.html`) writes `assignedTechId` via `updateProject()`; techs listed via new `firestore-users.js:getUsersByRole('tech')` |
 | FR6 | Clients have a real read-only portal showing project status and approval state for their properties only. | ⬜ | `pending-approval.html` is a stub; no client-scoped query exists — Roadmap Phase 1 |
 | FR7 | Project status lifecycle: Pending Approval → Approved → Sent → Completed. | 🟡 | Status field exists and is set on create; no UI to transition Approved/Sent/Completed |
 | FR8 | PM/Admin can manage a contacts list (owners/clients) linked to projects. | ✅ | `contacts.html`, `firestore-contacts.js` |
@@ -24,7 +24,7 @@ Status legend: ✅ Done · 🟡 Partial · ⬜ Not started
 
 | ID | Category | Requirement | Status | Notes |
 |---|---|---|---|---|
-| NFR1 | Security | All Firestore/Storage access enforced server-side via security rules; client-side role checks are UX only. | 🟡 | Firestore rules exist and are reasonably scoped (`firestore.rules`); **Storage rules do not exist yet** — photo uploads currently rely only on client-side path conventions |
+| NFR1 | Security | All Firestore/Storage access enforced server-side via security rules; client-side role checks are UX only. | 🟡 | Firestore rules exist and are reasonably scoped (`firestore.rules`), and `users/{uid}` read now correctly allows PM/Admin to list all users; page-level guards were missing on `dashboard.html`/`backup.html`/`contacts.html`/`pending-send.html` and have been added (defense-in-depth, not the real boundary). **Storage rules still do not exist** — photo uploads rely only on client-side path conventions |
 | NFR2 | Security | CSP headers configured in `firebase.json`. | ⬜ | Roadmap Phase 2 |
 | NFR3 | Security | Login rate limiting or Firebase App Check enabled. | ⬜ | Roadmap Phase 2 |
 | NFR4 | Reliability | No dead code paths; CI catches broken imports before merge. | ✅ | CI added (`.github/workflows/ci.yml`); caught/fixed the `seed.html` broken import as the first real case |

@@ -23,7 +23,9 @@ If you stand up your own Firebase project, replace the values there.
 ### Create test users
 
 1. In the Firebase console → Authentication, create a user per role you want to test (e.g. `pm@test.com`, `tech@test.com`).
-2. In Firestore, create a doc at `users/{uid}` (uid from the Auth user) with a `role` field set to `pm`, `admin`, `tech`, or `client`.
+2. In Firestore, create a doc at `users/{uid}` (uid from the Auth user) with:
+   - `role` — `pm`, `admin`, `tech`, or `client` (required)
+   - `email` and/or `name` — optional, but **required in practice for `tech` users** if you want the PM dashboard's technician-assignment dropdown to show something more useful than a raw uid. The client SDK cannot call Firebase Auth's `listUsers()` (that's admin-only), so there is no automatic way to sync the Auth email into this doc — you have to type it in by hand today. See `ARCHITECTURE.md` for the tradeoff.
 3. Log in via `index.html` — you'll land on that role's home page (`roleHome()` in `auth.js`).
 
 ### Seed sample data

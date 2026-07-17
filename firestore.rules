@@ -24,9 +24,10 @@ service cloud.firestore {
     }
 
     // ── Users ─────────────────────────────────────────────────────────────
-    // Users can only read their own profile; only admins can write user docs.
+    // Users can read their own profile; PM/Admin can also read any user doc
+    // (needed to list technicians for project assignment). Only admins write.
     match /users/{userId} {
-      allow read: if isAuthed() && request.auth.uid == userId;
+      allow read: if isAuthed() && (request.auth.uid == userId || isPMorAdmin());
       allow write: if isAdmin();
     }
 
