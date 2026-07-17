@@ -33,7 +33,7 @@
   <script type="module">
     import { getAllProjects, updateProject } from './public/js/firestore-projects.js';
     import { getUsersByRole } from './public/js/firestore-users.js';
-    import { escHtml, formatUserLabel } from './public/js/utils.js';
+    import { escHtml, formatUserLabel, PROJECT_STATUSES, projectStatusBadgeClasses } from './public/js/utils.js';
 
     document.addEventListener("DOMContentLoaded", async () => {
       const projectList = document.getElementById("projectList");
@@ -75,14 +75,28 @@
           return `<option value="" ${unassignedSelected}>— Unassigned —</option>${options}`;
         };
 
+        const statusOptionsFor = (project) => PROJECT_STATUSES.map(s =>
+          `<option value="${escHtml(s)}" ${s === (project.status || 'Pending Approval') ? "selected" : ""}>${escHtml(s)}</option>`
+        ).join("");
+
         projectList.innerHTML = allProjects.map((project) => {
           const total = project.tasks.reduce((sum, task) => sum + task.hours * task.rate + task.material, 0);
           return `
             <div class="border p-4 rounded bg-white shadow">
-              <h2 class="text-xl font-semibold">${escHtml(project.projectName)} (${escHtml(project.owner)})</h2>
+              <div class="flex justify-between items-start">
+                <h2 class="text-xl font-semibold">${escHtml(project.projectName)} (${escHtml(project.owner)})</h2>
+                <span class="text-xs font-medium px-2 py-1 rounded-full ${projectStatusBadgeClasses(project.status)}">${escHtml(project.status || 'Pending Approval')}</span>
+              </div>
               <p><strong>Address:</strong> ${escHtml(project.address)}, Unit ${escHtml(project.unit)}</p>
               <p><strong>Target Date:</strong> ${escHtml(project.date)}</p>
               <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
+              <label class="block mt-2 text-sm">
+                <strong>Status:</strong>
+                <select class="assignSelect border rounded p-1 ml-1" data-field="status" data-project-id="${escHtml(project.id)}">
+                  ${statusOptionsFor(project)}
+                </select>
+                <span class="assignStatus text-xs text-gray-500 ml-1"></span>
+              </label>
               <label class="block mt-2 text-sm">
                 <strong>Assigned Technician:</strong>
                 <select class="assignSelect border rounded p-1 ml-1" data-field="assignedTechId" data-project-id="${escHtml(project.id)}">

@@ -30,10 +30,10 @@
   </div>
 
   <script type="module">
-    import { getProjectsByStatus } from './public/js/firestore-projects.js';
+    import { getProjectsByStatus, updateProject } from './public/js/firestore-projects.js';
     import { escHtml } from './public/js/utils.js';
 
-    document.addEventListener("DOMContentLoaded", async () => {
+    async function render() {
       const projectList = document.getElementById("projectList");
       projectList.innerHTML = `<p class="text-gray-500">Loading…</p>`;
 
@@ -51,18 +51,44 @@
             <p><strong>Owner:</strong> ${escHtml(p.owner)}</p>
             <p><strong>Address:</strong> ${escHtml(p.address)}, Unit ${escHtml(p.unit)}</p>
             <p><strong>Target Date:</strong> ${escHtml(p.date)}</p>
-            <button data-project-id="${escHtml(p.id)}" class="viewBtn bg-blue-500 text-white px-3 py-1 rounded mt-2">View</button>
+            <div class="mt-2 flex gap-2 items-center">
+              <button data-project-id="${escHtml(p.id)}" class="viewBtn bg-blue-500 text-white px-3 py-1 rounded">View</button>
+              <button data-project-id="${escHtml(p.id)}" class="sendBtn bg-green-600 text-white px-3 py-1 rounded">Mark as Sent</button>
+              <span class="sendStatus text-xs text-gray-500"></span>
+            </div>
           </div>
         `).join("");
-
-        projectList.addEventListener("click", (e) => {
-          const btn = e.target.closest("button.viewBtn");
-          if (btn && btn.dataset.projectId) window.viewProject(btn.dataset.projectId);
-        });
       } catch (error) {
         console.error("Error loading projects:", error);
         projectList.innerHTML = `<p class="text-red-500">Failed to load projects. Check your connection and try refreshing.</p>`;
       }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const projectList = document.getElementById("projectList");
+
+      projectList.addEventListener("click", async (e) => {
+        const viewBtn = e.target.closest("button.viewBtn");
+        if (viewBtn?.dataset.projectId) { window.viewProject(viewBtn.dataset.projectId); return; }
+
+        const sendBtn = e.target.closest("button.sendBtn");
+        if (!sendBtn?.dataset.projectId) return;
+
+        const pid = sendBtn.dataset.projectId;
+        const statusEl = sendBtn.parentElement.querySelector(".sendStatus");
+        sendBtn.disabled = true;
+        statusEl.textContent = "Sending…";
+        try {
+          await updateProject(pid, { status: "Sent" });
+          await render(); // project no longer matches "Approved" — refresh the list
+        } catch (error) {
+          console.error("Error marking project as sent:", error);
+          statusEl.textContent = "Failed. Try again.";
+          sendBtn.disabled = false;
+        }
+      });
+
+      render();
     });
   </script>
 

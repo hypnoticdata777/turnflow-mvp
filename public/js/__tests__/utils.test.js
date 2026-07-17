@@ -8,7 +8,9 @@ import {
   calculateEstimateTotal,
   formatUserLabel,
   assignedTechLabel,
-  assignedClientLabel
+  assignedClientLabel,
+  PROJECT_STATUSES,
+  projectStatusBadgeClasses
 } from '../utils.js';
 
 describe('escHtml', () => {
@@ -180,5 +182,23 @@ describe('assignedClientLabel', () => {
     const project = { assignedTechId: 'tech-1', clientId: 'client-1' };
     expect(assignedClientLabel(project, clients)).toBe('Maria Felix');
     expect(assignedClientLabel(project, [{ uid: 'tech-1', name: 'Jamie Rivera' }])).toBe('Unknown (client-1)');
+  });
+});
+
+describe('PROJECT_STATUSES', () => {
+  it('lists the lifecycle in forward order', () => {
+    expect(PROJECT_STATUSES).toEqual(['Pending Approval', 'Approved', 'Sent', 'Completed']);
+  });
+});
+
+describe('projectStatusBadgeClasses', () => {
+  it('returns a distinct class set for each known status', () => {
+    const classes = PROJECT_STATUSES.map(projectStatusBadgeClasses);
+    expect(new Set(classes).size).toBe(PROJECT_STATUSES.length);
+  });
+
+  it('falls back to the Pending Approval styling for unknown/missing status', () => {
+    expect(projectStatusBadgeClasses('Pending Approval')).toBe(projectStatusBadgeClasses(undefined));
+    expect(projectStatusBadgeClasses('Pending Approval')).toBe(projectStatusBadgeClasses('bogus'));
   });
 });

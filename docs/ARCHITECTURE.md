@@ -146,7 +146,10 @@ public/js/
   firestore-users.js      Read-only user lookups (e.g. getUsersByRole('tech'|'client'))
   script.js               Dashboard/new-project/stats page logic, DOM wiring
   technician.js            Photo upload + gallery logic
-  utils.js                Pure helpers: escHtml, task status derivation, cost calc
+  utils.js                Pure helpers: escHtml, task status derivation, cost calc,
+                          assignment labels, PROJECT_STATUSES/projectStatusBadgeClasses()
+                          (FR7's shared source of truth, used by both dashboard.html's
+                          editable status dropdown and pending-approval.html's read-only badge)
   __tests__/utils.test.js Vitest unit tests for utils.js
 
 firestore.rules           Firestore security rules
