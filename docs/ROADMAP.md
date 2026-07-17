@@ -33,16 +33,21 @@ Goal: make the codebase trustworthy to build on top of.
 Goal: all three roles named in the README actually work end-to-end. Right
 now "client" is a stub, which is the single most visible gap in any demo.
 
+- [x] **FR5 — Technician assignment UI.** (done 2026-07-12) Dropdown on
+      the PM dashboard, populated from `users` where `role == 'tech'` via
+      new `firestore-users.js`, writes `assignedTechId` via
+      `updateProject()`. Removes the last "edit Firestore by hand" step
+      for this flow. Required loosening the `users/{userId}` read rule to
+      let PM/Admin read any user doc (previously own-doc-only), and
+      surfaced that `dashboard.html`/`backup.html`/`contacts.html`/
+      `pending-send.html` had no page-level role guard at all — fixed as
+      part of the same change (NFR1).
 - [ ] **FR6 — Real client portal.** `pending-approval.html` needs a
       Firestore query scoped to the client's own project(s) (likely via a
       `clientId` or `contactId` field on `projects`), read-only status
       display, and a `client` rule in `firestore.rules` restricting reads
       to `resource.data.clientId == request.auth.uid` instead of "any
-      authenticated user."
-- [ ] **FR5 — Technician assignment UI.** A dropdown on the PM dashboard
-      (populate from `users` where `role == 'tech'`) that writes
-      `assignedTechId` via `updateProject()`. Removes the last
-      "edit Firestore by hand" step in the whole app.
+      authenticated user." **This is the next Phase 1 item.**
 - [ ] **FR7 — Status lifecycle UI.** Buttons/actions to move a project
       through Pending Approval → Approved → Sent → Completed, not just a
       value set once at creation.

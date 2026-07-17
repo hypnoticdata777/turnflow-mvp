@@ -68,3 +68,24 @@ export function calculateEstimateTotal(tasks = []) {
     return total + (hours * rate) + material;
   }, 0);
 }
+
+/**
+ * Best-effort human-readable label for a users/{uid} doc.
+ * Falls back through name -> email -> uid since neither field is guaranteed
+ * (user docs are hand-created today; see docs/SETUP.md).
+ */
+export function formatUserLabel(user) {
+  if (!user) return '';
+  return user.name || user.email || user.uid || '';
+}
+
+/**
+ * Finds the display label for a project's assignedTechId within a list of
+ * tech users, or a fallback string if unassigned/not found.
+ */
+export function assignedTechLabel(project, techUsers = []) {
+  const techId = project?.assignedTechId;
+  if (!techId) return 'Unassigned';
+  const match = techUsers.find(u => u.uid === techId);
+  return match ? formatUserLabel(match) : `Unknown (${techId})`;
+}

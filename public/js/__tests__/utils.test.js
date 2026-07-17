@@ -5,7 +5,9 @@ import {
   tf_statusLabel,
   tf_parseDate,
   tf_isValidDate,
-  calculateEstimateTotal
+  calculateEstimateTotal,
+  formatUserLabel,
+  assignedTechLabel
 } from '../utils.js';
 
 describe('escHtml', () => {
@@ -117,5 +119,43 @@ describe('calculateEstimateTotal', () => {
 
   it('parses string-valued numeric fields (matches raw DOM input.value)', () => {
     expect(calculateEstimateTotal([{ hours: '3', rate: '20', material: '15' }])).toBe(75);
+  });
+});
+
+describe('formatUserLabel', () => {
+  it('prefers name over email over uid', () => {
+    expect(formatUserLabel({ uid: 'u1', email: 'a@b.com', name: 'Alex' })).toBe('Alex');
+    expect(formatUserLabel({ uid: 'u1', email: 'a@b.com' })).toBe('a@b.com');
+    expect(formatUserLabel({ uid: 'u1' })).toBe('u1');
+  });
+
+  it('returns an empty string for null/undefined', () => {
+    expect(formatUserLabel(null)).toBe('');
+    expect(formatUserLabel(undefined)).toBe('');
+  });
+});
+
+describe('assignedTechLabel', () => {
+  const techs = [
+    { uid: 'tech-1', name: 'Jamie Rivera' },
+    { uid: 'tech-2', email: 'sam@turnflow.test' }
+  ];
+
+  it('returns Unassigned when no assignedTechId is set', () => {
+    expect(assignedTechLabel({}, techs)).toBe('Unassigned');
+    expect(assignedTechLabel({ assignedTechId: '' }, techs)).toBe('Unassigned');
+  });
+
+  it('resolves the assigned tech to their display label', () => {
+    expect(assignedTechLabel({ assignedTechId: 'tech-1' }, techs)).toBe('Jamie Rivera');
+    expect(assignedTechLabel({ assignedTechId: 'tech-2' }, techs)).toBe('sam@turnflow.test');
+  });
+
+  it('falls back to a placeholder when the tech is not in the provided list', () => {
+    expect(assignedTechLabel({ assignedTechId: 'ghost' }, techs)).toBe('Unknown (ghost)');
+  });
+
+  it('defaults the tech list to empty', () => {
+    expect(assignedTechLabel({ assignedTechId: 'tech-1' })).toBe('Unknown (tech-1)');
   });
 });

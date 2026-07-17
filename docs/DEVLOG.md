@@ -7,6 +7,41 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 1: technician assignment UI, plus a page-guard gap found along the way
+
+- **Added:** PM dashboard can now assign a technician to a project from a
+  dropdown (`dashboard.html`) instead of hand-editing `assignedTechId` in
+  the Firestore console. (FR5 ✅)
+- **Added:** `public/js/firestore-users.js` — `getUsersByRole(role)`, the
+  first read query against the `users` collection from app code (previously
+  only single-doc `getUserRole()` lookups existed).
+- **Changed rule:** `firestore.rules` — `users/{userId}` read now allows
+  `pm`/`admin` to read *any* user doc, not just their own. Required so the
+  assignment dropdown can list technicians; write access is unchanged
+  (`admin`-only).
+- **Added (pure, tested):** `formatUserLabel()` and `assignedTechLabel()`
+  in `utils.js` — 6 new unit tests, 27 total passing.
+- **Found and fixed while implementing the above:** `dashboard.html`,
+  `backup.html`, `contacts.html`, and `pending-send.html` had **no
+  page-level role guard** — unlike `technician.html`/`estimate.html`/
+  `stats.html`, they never called `requireRole`/`requireAnyRole`. A
+  logged-in `tech` or `client` user who navigated to these URLs directly
+  would see PM-only UI (writes would still fail server-side via Firestore
+  rules, so this wasn't a data-access hole, but it's inconsistent with the
+  stated role model and produces confusing failed-write errors instead of
+  a clean redirect). All four now call
+  `await requireAnyRole(['pm', 'admin'])`. `pending-approval.html` is
+  deliberately left unguarded — it's also the `client` role's landing
+  page and is being rebuilt as part of FR6 next, not patched in place.
+  (NFR1)
+- **Setup note added:** technician `users/{uid}` docs should now include
+  an `email` or `name` field so the new assignment dropdown shows
+  something more useful than a raw uid — there's no way to sync this
+  automatically from Firebase Auth via the client SDK. Documented in
+  `docs/SETUP.md`.
+
+---
+
 ### 2026-07-12 — Phase 0 stabilization: fix seed tool, add tests + CI, workbook created
 
 - **Fixed:** `seed.html` imported `auth` and `db` from `public/js/auth.js`,

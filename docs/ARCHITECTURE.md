@@ -35,11 +35,27 @@ Role is stored at `users/{uid}.role` in Firestore and set manually via the
 Firebase console today (see `SETUP.md`). `roleHome(role)` in `auth.js` is
 the single source of truth for "where does this role land after login."
 
+**Page-level role guards.** Every PM/Admin-only page must call
+`await requireAnyRole(['pm', 'admin'])` (or `requireRole('tech')` for the
+technician page) near the top of `<body>`, *before* rendering content —
+see `technician.html`/`estimate.html`/`stats.html` for the pattern. This
+is defense-in-depth on top of `firestore.rules`, not a substitute for it:
+Firestore rules are what actually stop a `tech`/`client` user from writing
+PM-only data even if a guard is missing, but a missing guard still lets
+the wrong role load PM-only UI and hit confusing "permission denied"
+errors on write instead of a clean redirect. `dashboard.html`,
+`backup.html`, `contacts.html`, and `pending-send.html` were found to be
+missing this guard as of 2026-07-12 and have since been fixed — see
+`DEVLOG.md`. `pending-approval.html` intentionally has no `pm`/`admin`
+guard (it's also the `client` role's home page) but is still a stub — see
+Roadmap Phase 1 / FR6.
+
 ## Data model (Firestore)
 
 ```
 users/{uid}
   role: "pm" | "admin" | "tech" | "client"
+  email?, name?          // hand-entered; see SETUP.md — no client-SDK sync from Firebase Auth
 
 projects/{projectId}
   projectName, address, unit, owner, date, status, assignedTechId?
@@ -77,7 +93,7 @@ turnflow/{projectId}/{taskId}/{type}/{uid}/{timestamp}_{filename}
 
 `firestore.rules` enforces role checks server-side (not just in the UI):
 
-- `users/{userId}`: read only your own doc; write only if `admin`.
+- `users/{userId}`: read your own doc, or any user doc if you're `pm`/`admin` (needed so PMs can list technicians for assignment — see `firestore-users.js`); write only if `admin`.
 - `projects/{projectId}`: read if authenticated; write (`create`/`update`/`delete`) only if `pm`/`admin`.
 - `projects/{projectId}/tasks/{taskId}/photos/{photoId}`: read if authenticated; create only by the `tech` whose `uid` matches `techId` on the doc; update/delete only `admin`.
 - `contacts/{contactId}`: read if authenticated; write only `pm`/`admin`.
@@ -112,6 +128,7 @@ public/js/
   auth.js                 Login, logout, role routing, requireRole/requireAnyRole guards
   firestore-projects.js   Project CRUD
   firestore-contacts.js   Contact CRUD
+  firestore-users.js      Read-only user lookups (e.g. getUsersByRole('tech'))
   script.js               Dashboard/new-project/stats page logic, DOM wiring
   technician.js            Photo upload + gallery logic
   utils.js                Pure helpers: escHtml, task status derivation, cost calc
