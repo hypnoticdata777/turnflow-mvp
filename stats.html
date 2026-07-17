@@ -35,16 +35,10 @@
     </div>
   </div>
 
-  <script type="module">
-    import { requireAnyRole } from './public/js/auth.js';
-    await requireAnyRole(['pm', 'admin']);
-  </script>
+  <script type="module" src="public/js/guard-pm-admin.js"></script>
 
   <script type="module" src="public/js/firebase-config.js"></script>
   <script type="module" src="public/js/auth.js"></script>
-  <script type="module">
-    import { logout } from "./public/js/auth.js";
-    document.getElementById("logoutBtn")?.addEventListener("click", logout);
-  </script>
+  <script type="module" src="public/js/wire-logout.js"></script>
 </body>
 </html>

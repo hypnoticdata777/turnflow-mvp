@@ -7,6 +7,73 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 2: close out CSP for real (NFR2) — inline script extraction
+
+Follow-up to the CSP pass earlier today. Asked whether to leave
+`script-src 'unsafe-inline'` as a known gap or close it now; decided the
+risk was manageable (every inline block is already `type="module"`,
+which executes identically whether inline or external — the only real
+failure modes are a wrong path or a missed block, both catchable without
+a browser) and closed it same-day.
+
+**What changed:**
+- Extracted all ~25 inline `<script type="module">` blocks across all 12
+  HTML pages into external files:
+  - `public/js/guard-pm-admin.js` — the `requireAnyRole(['pm','admin'])`
+    guard, previously copy-pasted identically into 6 files (`dashboard`,
+    `backup`, `contacts`, `pending-send`, `stats`, `estimate`). Confirmed
+    byte-identical across all 6 before consolidating.
+  - `public/js/wire-logout.js` — the `#logoutBtn` click-to-`logout()`
+    wiring, previously copy-pasted identically into 5 files. Same
+    byte-identical confirmation.
+  - `public/js/pages/*.js` — page-specific logic that only appeared
+    once: `dashboard.js`, `backup.js`, `contacts.js`, `pending-send.js`,
+    `estimate.js`, `seed.js`, `technician-projects.js`, plus
+    `pending-approval.guard.js`/`.header.js`/`.js` and
+    `technician.guard.js`/`.header.js` for the two single-role pages.
+- Also fixed `estimate.html`'s one inline `onclick="downloadPDF()"`
+  attribute — inline event-handler attributes are governed by
+  `script-src` too, so leaving it would have forced `'unsafe-inline'`
+  back on regardless of the rest of the extraction. Converted to
+  `getElementById + addEventListener`, dropped the `window.downloadPDF`
+  global it depended on.
+- `firebase.json`'s CSP: removed `'unsafe-inline'` from `script-src`.
+  `style-src` keeps it — architectural, not deferred (Tailwind Play CDN
+  injects runtime CSS; see `ARCHITECTURE.md`).
+
+**Bug found and fixed along the way, not just moved:** `new-project.html`
+had its own hand-rolled guard using `currentUser()` (a synchronous read
+of `auth.currentUser`) instead of the shared `requireAnyRole()` — this is
+*exactly* the auth race condition that `requireRole`/`requireAnyRole`
+were built to fix, per the 2026-03-01 devlog entry below. It never got
+that fix because it never called the shared helper. It does now
+(`public/js/guard-pm-admin.js`), so a PM refreshing that page can no
+longer get bounced to `index.html` by a slow-resolving session.
+
+**How this was verified without a live browser** (the constraint that
+made this a judgment call in the first place):
+1. `node --check` on every one of the 14 new files — confirmed valid JS
+   syntax (Node's ES module parser handles `https://` import specifiers
+   fine for a syntax-only check, since it doesn't try to resolve them).
+2. Byte-for-byte diff (`diff -B -w`, ignoring blank lines/whitespace) of
+   every extracted file against the exact original inline content pulled
+   from `git show HEAD:<file>` — confirmed the *only* differences were
+   the intended ones: relative import paths updated (`./public/js/x.js`
+   → `../x.js`, since the file's own location changed) and the two
+   deliberate fixes above. No accidental content loss or retyping
+   errors anywhere.
+3. `grep` sweep confirming zero remaining inline `<script type="module">`
+   blocks and zero remaining inline `on*=` attributes anywhere in the repo.
+4. Full `npm test` — 34/34 still passing (this refactor didn't touch
+   `utils.js` or its tests).
+
+**Not changed:** page behavior, DOM structure, event wiring, and
+execution order are all identical to before — `type="module"` scripts
+already execute deferred (after parse, in document order) whether inline
+or external, so extraction is a pure relocation, not a timing change.
+
+---
+
 ### 2026-07-12 — Phase 2: CSP + security headers (NFR2)
 
 - **Added:** `Content-Security-Policy` (plus `X-Content-Type-Options`,

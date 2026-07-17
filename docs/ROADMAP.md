@@ -85,21 +85,24 @@ Goal: safe to point at from outside your own laptop.
       and in the parallel Firestore photos-subcollection rule) still
       isn't `clientId`-scoped — tracked as a residual NFR1 item, to fix
       in one pass across both rule files so they don't disagree.
-- [x] **NFR2 — CSP headers.** (done 2026-07-12, partial by deliberate
-      choice) Added to `firebase.json`'s `hosting.headers`: `script-src`
-      allowlists only the 4 hosts the app actually loads from,
-      `frame-ancestors`/`object-src`/`base-uri`/`form-action` are fully
-      locked down, plus `X-Content-Type-Options`/`X-Frame-Options`/
-      `Referrer-Policy`. **Deliberately not maximal:** `script-src`/
-      `style-src` still allow `'unsafe-inline'` because every page has
-      inline `<script type="module">` blocks and Tailwind's CDN injects
-      runtime CSS — closing that for real means extracting ~25 inline
-      script blocks across 12 HTML files into external `.js` files
-      first. Chose the pragmatic header now over a half-verified
-      multi-file refactor with no live browser here to test each page
-      afterward — see `ARCHITECTURE.md`'s CSP section. **Follow-up: if
-      that refactor happens, tighten `script-src`/`style-src` to drop
-      `'unsafe-inline'` in the same pass.**
+- [x] **NFR2 — CSP headers.** (done 2026-07-12, fully closed on the
+      script side) First pass added the header with `'unsafe-inline'`
+      kept on `script-src`/`style-src` since every page had inline
+      `<script type="module">` blocks. Revisited same-day: extracted all
+      ~25 inline blocks across 12 HTML pages into external files
+      (`public/js/guard-pm-admin.js`, `wire-logout.js`,
+      `public/js/pages/*`), fixed `estimate.html`'s one inline `onclick`
+      attribute (also governed by `script-src`), then dropped
+      `'unsafe-inline'` from `script-src` entirely. Verified without a
+      live browser via byte-for-byte diff of every extracted file
+      against the original inline content plus `node --check` on every
+      new file — see `DEVLOG.md`. Found and fixed a real bug along the
+      way: `new-project.html`'s hand-rolled guard had the exact auth
+      race condition `requireRole`/`requireAnyRole` were built to fix.
+      `style-src` still needs `'unsafe-inline'` — architectural, not
+      deferred: the Tailwind Play CDN injects runtime CSS, and removing
+      that requires dropping the CDN approach (see the Vite-migration
+      trigger below), which is out of scope for a header change.
 - [ ] **NFR3 — Login rate limiting / App Check.**
 - [ ] **FR13 / NFR8 — Cascading delete** for `tasks/{id}/photos` and
       their Storage objects when a project is deleted. A Cloud Function

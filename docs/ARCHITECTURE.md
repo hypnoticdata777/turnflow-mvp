@@ -137,30 +137,59 @@ Check (NFR3, still Phase 2 todo).
 ## Content Security Policy (NFR2)
 
 `firebase.json`'s `hosting.headers` sets a CSP on every response (plus
-`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`). It's a
-**pragmatic** CSP, not a maximal one, and that tradeoff was a deliberate
-call rather than an accident — worth understanding before touching it:
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`).
 
-- `script-src` allowlists exactly the four external hosts the app
-  actually loads from (`cdn.tailwindcss.com`, `www.gstatic.com`,
-  `cdnjs.cloudflare.com` for jsPDF, `cdn.jsdelivr.net` for Chart.js) —
-  arbitrary third-party script injection from anywhere else is blocked.
-- `script-src` and `style-src` both still need `'unsafe-inline'`. Every
-  page has 1–3 inline `<script type="module">` blocks carrying real
-  logic (auth guards, DOM wiring — see `SETUP.md`/`ROADMAP.md`), and the
-  Tailwind Play CDN script injects its generated CSS via a runtime
-  `<style>` tag. Dropping `'unsafe-inline'` today would break every page.
-  Closing this gap for real means extracting all inline module scripts
-  into external `.js` files first — a ~25-block refactor across 12 HTML
-  files, deliberately deferred rather than done half-verified (no live
-  browser in this environment to click through each page afterward).
-  **This is the actual remaining edge of NFR2** — the header exists, but
-  it isn't blocking script injection the way a CSP ideally would.
+`script-src` has **no `'unsafe-inline'`** — real script injection
+protection, not just a header for show:
+
+- Allowlists exactly the four external hosts the app loads scripts from
+  (`cdn.tailwindcss.com`, `www.gstatic.com`, `cdnjs.cloudflare.com` for
+  jsPDF, `cdn.jsdelivr.net` for Chart.js).
+- No inline scripts of any kind are allowed to execute — not
+  `<script>...</script>` blocks, not `onclick="..."` attributes. This
+  required a refactor (2026-07-12): every page previously had 1–3 inline
+  `<script type="module">` blocks doing real work (auth guards, DOM
+  wiring). All ~25 of them, across all 12 HTML pages, were extracted
+  into external files under `public/js/` (shared logic like the
+  `pm`/`admin` guard and logout-button wiring) and `public/js/pages/`
+  (page-specific logic). `estimate.html`'s one inline `onclick="downloadPDF()"`
+  attribute was also converted to `addEventListener`, since inline event
+  handlers are governed by `script-src` too and would have forced
+  `'unsafe-inline'` back on regardless of the rest of the cleanup.
+  See `DEVLOG.md` for the file-by-file breakdown and the verification
+  method (byte-for-byte diff of every extracted file against the
+  original inline content, plus `node --check` on every new file — no
+  live browser available in this environment, so correctness was
+  established by diffing and syntax-checking rather than clicking
+  through each page).
+- Two real bugs surfaced and were fixed during the extraction, not just
+  moved: `new-project.html` had its own hand-rolled auth guard using
+  `currentUser()` (a synchronous read of `auth.currentUser`) instead of
+  the shared `requireAnyRole()` — exactly the auth race condition that
+  was supposedly fixed project-wide back in Phase 0. It never adopted
+  that fix because it never used the shared helper. Now it does
+  (`public/js/guard-pm-admin.js`). And the `onclick` fix above, which
+  wasn't just a CSP nicety — it removed a `window.downloadPDF` global.
+- `style-src` still needs `'unsafe-inline'` — this is a separate,
+  architectural constraint, not an oversight: the Tailwind Play CDN
+  script injects its generated CSS via a runtime `<style>` tag, and
+  there's no way to avoid that short of dropping the CDN approach
+  entirely (see the Vite migration trigger in `ROADMAP.md`'s scaling
+  section). Extracting inline scripts doesn't touch this.
 - `connect-src`/`img-src` allow `https://*.googleapis.com` (Firestore,
   Auth, Storage all resolve under this) plus `data:` for `img-src`.
 - `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`,
-  `form-action 'self'` are all fully enforced with no exceptions — these
-  don't conflict with anything the app does today.
+  `form-action 'self'` are all fully enforced with no exceptions.
+
+**Shared/page-specific script layout**, introduced by this refactor:
+
+```
+public/js/guard-pm-admin.js   Shared pm/admin page guard (6 pages)
+public/js/wire-logout.js      Shared #logoutBtn wiring (5 pages)
+public/js/pages/{page}.js           Page-specific main logic
+public/js/pages/{page}.guard.js     Page-specific guard (single-role pages)
+public/js/pages/{page}.header.js    Page-specific custom header builder
+```
 
 ## File map
 
@@ -184,16 +213,25 @@ public/js/
   firestore-projects.js   Project CRUD + getProjectsByStatus/getProjectsForClient
   firestore-contacts.js   Contact CRUD
   firestore-users.js      Read-only user lookups (e.g. getUsersByRole('tech'|'client'))
-  script.js               Dashboard/new-project/stats page logic, DOM wiring
+  script.js               Sidebar loading, new-project form + stats-chart DOM wiring,
+                          window.* exports (viewProject/editProject/deleteProject/
+                          markTaskComplete/tf_getTaskStatus/tf_statusLabel) consumed by
+                          public/js/pages/dashboard.js
   technician.js            Photo upload + gallery logic
   utils.js                Pure helpers: escHtml, task status derivation, cost calc,
                           assignment labels, PROJECT_STATUSES/projectStatusBadgeClasses()
                           (FR7's shared source of truth, used by both dashboard.html's
                           editable status dropdown and pending-approval.html's read-only badge)
+  guard-pm-admin.js       Shared pm/admin page guard (CSP extraction, 2026-07-12)
+  wire-logout.js          Shared #logoutBtn wiring (CSP extraction, 2026-07-12)
+  pages/                  Page-specific logic extracted from inline <script> blocks
+                          (dashboard.js, backup.js, contacts.js, pending-send.js,
+                          estimate.js, seed.js, technician-projects.js, plus
+                          {page}.guard.js/{page}.header.js for the single-role pages)
   __tests__/utils.test.js Vitest unit tests for utils.js
 
 firestore.rules           Firestore security rules
 storage.rules             Firebase Storage security rules (photo uploads)
-firebase.json             Hosting + firestore/storage rules deploy config
+firebase.json             Hosting + firestore/storage rules deploy config, CSP headers
 .github/workflows/ci.yml  CI: npm test on push/PR to main
 ```
