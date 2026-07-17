@@ -113,14 +113,26 @@ turnflow/{projectId}/{taskId}/{type}/{uid}/{timestamp}_{filename}
 - `projects/{projectId}/tasks/{taskId}/photos/{photoId}`: read if authenticated (not currently `clientId`-scoped — see NFR1 residual gap in `REQUIREMENTS.md`); create only by the `tech` whose `uid` matches `techId` on the doc; update/delete only `admin`.
 - `contacts/{contactId}`: read if authenticated; write only `pm`/`admin`.
 
-**Gap:** there is no `storage.rules` file in this repo and `firebase.json`
-does not reference one. Firestore rules protect the *metadata* documents in
-`.../photos/{photoId}`, but the actual binary files in Firebase Storage are
-governed by whatever rules are configured directly in the Firebase console
-(if any) — this is not currently version-controlled or reviewable in this
-repo. This is tracked as NFR1 in `REQUIREMENTS.md` and should be fixed
-early in Roadmap Phase 2: add a `storage.rules` file, mirror the Firestore
-tech/admin logic, and wire it into `firebase.json`.
+`storage.rules` (added 2026-07-12, wired into `firebase.json`'s new
+`"storage"` block) governs the actual binary files at the path above,
+mirroring the Firestore photos-subcollection rule so the two don't drift:
+
+- Read: any authenticated user (matches the Firestore rule's current
+  breadth — see the residual `clientId`-scoping gap noted above and in
+  NFR1; tightening one without the other would make Storage and Firestore
+  disagree about who can see a photo).
+- Write: only the `tech` whose uid matches the `{uid}` path segment —
+  checked via `firestore.get()` cross-service lookup into
+  `users/{uid}.role`, the same role source `firestore.rules` uses, so a
+  client or PM can't write into a tech's upload path even though they're
+  authenticated.
+- Delete: `admin` only.
+- Everything outside the known `turnflow/...` path is denied by default
+  (`match /{allPaths=**} { allow read, write: if false; }`).
+
+This closes the biggest half of NFR1's Storage gap. What's still open:
+the read-side `clientId` scoping (tracked above) and rate limiting/App
+Check (NFR3, still Phase 2 todo).
 
 ## File map
 
@@ -153,6 +165,7 @@ public/js/
   __tests__/utils.test.js Vitest unit tests for utils.js
 
 firestore.rules           Firestore security rules
-firebase.json             Hosting + rules deploy config
+storage.rules             Firebase Storage security rules (photo uploads)
+firebase.json             Hosting + firestore/storage rules deploy config
 .github/workflows/ci.yml  CI: npm test on push/PR to main
 ```

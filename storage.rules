@@ -1,0 +1,36 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helper functions ──────────────────────────────────────────────────
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    // Cross-service lookup into the same users/{uid}.role doc that
+    // firestore.rules checks, so Storage and Firestore enforce the same
+    // role model instead of drifting apart.
+    function getRole() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isAuthed() && getRole() == 'admin';
+    }
+
+    // turnflow/{projectId}/{taskId}/{type}/{uid}/{fileName}
+    // Mirrors the projects/{id}/tasks/{id}/photos/{id} Firestore rule:
+    // any authenticated user can read, only the uploading tech can write
+    // their own photo, only admins can delete.
+    match /turnflow/{projectId}/{taskId}/{type}/{uid}/{fileName} {
+      allow read: if isAuthed();
+      allow write: if isAuthed() && request.auth.uid == uid && getRole() == 'tech';
+      allow delete: if isAdmin();
+    }
+
+    // Deny everything outside the known upload path by default.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

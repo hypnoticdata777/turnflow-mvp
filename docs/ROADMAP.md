@@ -75,11 +75,16 @@ delete both get harder to reason about if task identity stays ambiguous.
 
 Goal: safe to point at from outside your own laptop.
 
-- [ ] **NFR1 — Storage rules.** Add `storage.rules`, mirror the
-      tech/admin logic already in `firestore.rules`, wire it into
-      `firebase.json`. This is currently the biggest unreviewed security
-      gap — photo files in Storage have no version-controlled access
-      control today.
+- [x] **NFR1 — Storage rules.** (done 2026-07-12) Added `storage.rules`,
+      wired into `firebase.json`'s new `"storage"` block. Read requires
+      auth; write requires `tech` role + a matching uid on the upload
+      path (checked via `firestore.get()` cross-service lookup into
+      `users/{uid}.role`, so it can't drift from the Firestore role
+      model); delete is `admin`-only; everything outside `turnflow/...`
+      is denied by default. **Not yet closed:** the read side (both here
+      and in the parallel Firestore photos-subcollection rule) still
+      isn't `clientId`-scoped — tracked as a residual NFR1 item, to fix
+      in one pass across both rule files so they don't disagree.
 - [ ] **NFR2 — CSP headers** in `firebase.json`'s `hosting.headers`.
 - [ ] **NFR3 — Login rate limiting / App Check.**
 - [ ] **FR13 / NFR8 — Cascading delete** for `tasks/{id}/photos` and

@@ -7,6 +7,35 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 2: Storage rules (NFR1) — first Phase 2 item
+
+- **Added:** `storage.rules` — the biggest unreviewed security gap called
+  out repeatedly since Phase 0 finally has a version-controlled fix.
+  Photo uploads previously relied on whatever was (or wasn't) configured
+  directly in the Firebase console, invisible to this repo. Mirrors the
+  Firestore photos-subcollection rule's intent: read requires auth, write
+  requires `tech` role *and* a matching uid on the `turnflow/{projectId}/
+  {taskId}/{type}/{uid}/{fileName}` path, delete is `admin`-only, and
+  everything outside that path is denied by default.
+- **Technique worth noting:** the write rule checks role via
+  `firestore.get(/databases/(default)/documents/users/$(request.auth.uid))
+  .data.role`, a cross-service lookup from Storage rules into the same
+  `users/{uid}` doc Firestore rules already use — so Storage and Firestore
+  enforce the same role model from one source of truth instead of two
+  rule files that could quietly drift apart.
+- **Wired in:** `firebase.json` gained a `"storage"` block; `storage.rules`
+  added to the hosting `ignore` list (shouldn't be served as a static
+  file, same treatment as `firestore.rules`).
+- **Did not fix (documented, not silently dropped):** the read side isn't
+  `clientId`-scoped, in either `storage.rules` or the parallel Firestore
+  photos-subcollection rule. Tightening one without the other would make
+  the two rule files disagree about who can see a photo, so this is
+  flagged as one combined follow-up rather than two half-fixes.
+- No test/code changes — this is a rules-only, docs-only change. Test
+  suite still at 34/34 passing.
+
+---
+
 ### 2026-07-12 — Phase 1: project status lifecycle UI (FR7) — Phase 1 complete
 
 - **Added:** PM dashboard now has a per-project **Status** dropdown

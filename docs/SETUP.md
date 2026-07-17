@@ -52,18 +52,19 @@ npm run test:watch  # watch mode
 
 Tests live in `public/js/__tests__/` and cover the dependency-free logic in
 `utils.js` (task status derivation, cost calculation, HTML escaping) —
-21 tests, no DOM or Firebase mocking required. See `ARCHITECTURE.md` for
+34 tests, no DOM or Firebase mocking required. See `ARCHITECTURE.md` for
 why the pure logic was extracted out of `script.js` to make this possible.
 
 CI (`.github/workflows/ci.yml`) runs the same `npm test` on every push and
 PR to `main`. There is currently **no browser/E2E test layer** and **no
-Firestore rules test layer** — see `ROADMAP.md` Phase 0 stretch goals.
+Firestore/Storage rules test layer** — see `ROADMAP.md` Phase 0 stretch goals.
 
 ## Deploy
 
 ```bash
-firebase deploy                          # hosting + firestore rules together
-firebase deploy --only firestore:rules   # rules only
+firebase deploy                          # hosting + firestore rules + storage rules together
+firebase deploy --only firestore:rules   # firestore rules only
+firebase deploy --only storage           # storage rules only
 firebase deploy --only hosting           # hosting only
 ```
 
