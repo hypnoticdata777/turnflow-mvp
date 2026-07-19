@@ -121,6 +121,9 @@ async function saveProject() {
 // --- Dashboard Action Functions ---
 
 async function deleteProject(id) {
+  if (!confirm("Delete this project? This also permanently deletes all photos uploaded for its tasks. This cannot be undone.")) {
+    return;
+  }
   try {
     await deleteProjectFromFirestore(id);
     window.location.reload();

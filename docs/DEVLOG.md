@@ -7,6 +7,53 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 2: cascading delete for task photos (FR13/NFR8)
+
+- **Added:** `deleteProject()` in `firestore-projects.js` now walks every
+  task index on the project (`0..tasks.length-1`), deletes every photo's
+  Storage object (by its stored `storagePath`) and Firestore doc under
+  `tasks/{index}/photos`, then deletes the project doc itself. A
+  missing/already-deleted Storage object is logged and skipped rather
+  than aborting the whole delete.
+- **Chose client-side over Cloud Functions:** the roadmap's other option
+  (a Cloud Function on document delete) needs the Blaze billing plan and
+  a functions deploy pipeline, neither of which exist in this repo —
+  would have meant introducing new infrastructure to close a data-
+  integrity gap. Client-side batched delete gets the same practical
+  result without that dependency.
+- **Rule change required:** `firestore.rules`'s photos-subcollection
+  delete and `storage.rules`'s delete were both `admin`-only. A plain
+  `pm` deleting their own project (which they're fully allowed to do)
+  would have had the project doc deleted but then hit permission-denied
+  on every photo cleanup call — a real inconsistency, not a hardening
+  choice, since `pm` already has full delete rights at the project
+  level. Loosened both to `pm`/`admin`.
+- **Added a confirmation prompt that didn't exist before:** the
+  dashboard's delete button had no `confirm()` at all. Now that delete
+  also permanently destroys uploaded photos, not just a project record,
+  the blast radius of a misclick grew — added a `confirm()` naming the
+  photo deletion explicitly.
+- **Found, documented, not fixed:** the cascade only knows about task
+  indices the *current* `tasks` array has. If a task was ever removed via
+  editing after photos were uploaded to it, those photos live under an
+  index beyond today's array length — a real subcollection Firestore
+  still has that nothing queries for, since the client SDK can't
+  enumerate "every subcollection path that ever existed" the way an
+  Admin SDK/Cloud Function could. The roadmap had already flagged
+  resolving the task-identity quirk (embedded array vs. subcollection
+  keyed by array index) as something to do *before* this cascading
+  delete — it wasn't, because that's a larger structural migration
+  (real task subcollection with stable IDs) than fit inside this pass.
+  Documented in `ARCHITECTURE.md`, `REQUIREMENTS.md` (FR13 marked 🟡, not
+  ✅), and `ROADMAP.md` rather than silently left for someone to discover.
+- No test changes — this logic is Firestore/Storage I/O with no pure
+  function to extract, consistent with the rest of `firestore-projects.js`
+  (none of which is unit tested; see the Phase 0 stretch goal for a rules/
+  emulator test layer that would cover this properly). 34/34 existing
+  tests still passing.
+
+---
+
 ### 2026-07-12 — Phase 2: close out CSP for real (NFR2) — inline script extraction
 
 Follow-up to the CSP pass earlier today. Asked whether to leave

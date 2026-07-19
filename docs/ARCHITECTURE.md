@@ -64,9 +64,9 @@ projects/{projectId}
   ]
   createdAt, updatedAt   // serverTimestamp()
 
-  tasks/{taskId}/photos/{photoId}      // NOTE: taskId here is a Storage-path key,
-    type: "before" | "after" | "receipt"  // NOT the same as an index into projects.tasks[]
-    url, storagePath, techId, createdAt
+  tasks/{taskId}/photos/{photoId}      // taskId here IS the array index into
+    type: "before" | "after" | "receipt"  // projects.tasks[], as a string — see the
+    url, storagePath, techId, createdAt   // modeling quirk note just below
 
 contacts/{contactId}
   (owner/client contact fields)
@@ -89,14 +89,28 @@ manually granting each one.
 
 **Known modeling quirk worth flagging:** `tasks` on a project is an
 *embedded array* (no task-level document IDs), but photos live in a
-*subcollection* keyed by `taskId` — a string typed into the technician
-upload form / selected by array index. These are two different notions of
-"task identity" living side by side. It works today because the
-technician UI populates the task dropdown from the same array index it
-writes into the photos path, but it's fragile: reordering or deleting a
-task from `projectData.tasks` silently orphans or mismatches existing
-photos. Worth resolving before FR7 (status lifecycle) or FR13 (cascading
-delete) get built on top of it — see Roadmap Phase 2.
+*subcollection* keyed by `taskId` — which is the task's array index,
+selected from the technician upload form's dropdown. These are two
+different notions of "task identity" living side by side. It works today
+because the technician UI populates the task dropdown from the same array
+index it writes into the photos path, but it's fragile: reordering or
+deleting a task from `projectData.tasks` silently orphans or mismatches
+existing photos.
+
+This directly limits FR13's cascading delete (2026-07-12): `deleteProject()`
+cleans up `tasks/{index}/photos` for every index `0..tasks.length-1` at
+delete time, which is correct for a project whose task list never shrank.
+But if a task was ever removed via editing after photos were uploaded to
+it, those photos now live under an index *beyond* the current array
+length — a real subcollection Firestore still has, that nothing queries
+for, because the client SDK has no way to enumerate "every subcollection
+path that ever existed" the way an Admin SDK/Cloud Function could. This
+was flagged as a "resolve before Phase 2's cascading delete" item and
+wasn't — the full fix (migrating `tasks` to a real subcollection with
+stable document IDs) is a larger structural change than fit in the
+cascading-delete pass itself; see the Firestore-scaling trigger in
+`ROADMAP.md`'s scaling section, where this promotion was already
+anticipated for a different reason (write-cost at scale).
 
 ## Storage layout (Firebase Storage)
 
@@ -110,7 +124,7 @@ turnflow/{projectId}/{taskId}/{type}/{uid}/{timestamp}_{filename}
 
 - `users/{userId}`: read your own doc, or any user doc if you're `pm`/`admin` (needed so PMs can list technicians/clients for assignment — see `firestore-users.js`); write only if `admin`.
 - `projects/{projectId}`: read if authenticated **and** (not a `client`, or `resource.data.clientId == request.auth.uid`) — `pm`/`admin`/`tech` read any project, `client` only reads projects explicitly shared with them; write (`create`/`update`/`delete`) only if `pm`/`admin`.
-- `projects/{projectId}/tasks/{taskId}/photos/{photoId}`: read if authenticated (not currently `clientId`-scoped — see NFR1 residual gap in `REQUIREMENTS.md`); create only by the `tech` whose `uid` matches `techId` on the doc; update/delete only `admin`.
+- `projects/{projectId}/tasks/{taskId}/photos/{photoId}`: read if authenticated (not currently `clientId`-scoped — see NFR1 residual gap in `REQUIREMENTS.md`); create only by the `tech` whose `uid` matches `techId` on the doc; update `admin` only; delete `pm`/`admin` (loosened from `admin`-only on 2026-07-12 — a plain `pm` deleting their own project needs to also delete its photos, since `deleteProject()` now cascades; see FR13).
 - `contacts/{contactId}`: read if authenticated; write only `pm`/`admin`.
 
 `storage.rules` (added 2026-07-12, wired into `firebase.json`'s new
@@ -126,13 +140,39 @@ mirroring the Firestore photos-subcollection rule so the two don't drift:
   `users/{uid}.role`, the same role source `firestore.rules` uses, so a
   client or PM can't write into a tech's upload path even though they're
   authenticated.
-- Delete: `admin` only.
+- Delete: `pm`/`admin` (loosened from `admin`-only alongside the matching
+  Firestore rule above, same reason: FR13's cascading delete).
 - Everything outside the known `turnflow/...` path is denied by default
   (`match /{allPaths=**} { allow read, write: if false; }`).
 
 This closes the biggest half of NFR1's Storage gap. What's still open:
 the read-side `clientId` scoping (tracked above) and rate limiting/App
 Check (NFR3, still Phase 2 todo).
+
+## Cascading delete (FR13 / NFR8)
+
+`deleteProject()` in `firestore-projects.js` no longer just deletes the
+project document. Before doing that, it walks every task index
+`0..tasks.length-1`, queries that index's `photos` subcollection, and for
+each photo doc: deletes the Storage object at its `storagePath` (a
+missing/already-gone object is logged and skipped, not treated as fatal),
+then deletes the photo doc itself. Only after all of that succeeds does
+it delete the project doc.
+
+This is a **client-side batched delete**, not a Cloud Function — a
+deliberate choice to stay serverless (Cloud Functions need the Blaze
+billing plan and a functions deploy pipeline neither of which exist in
+this repo yet; see the "when to introduce a backend" trigger in
+`ROADMAP.md`'s scaling section). The tradeoff: it only knows about task
+indices the *current* `tasks` array has. See the task-identity quirk note
+above for the resulting gap (photos under indices from a task that was
+since removed via editing aren't caught).
+
+Because this cascade is more destructive than the old "just delete the
+project doc" behavior, `script.js`'s `deleteProject()` (the dashboard's
+click handler, not to be confused with the same-named Firestore function)
+now shows a `confirm()` prompt naming the photo deletion explicitly —
+there wasn't one before, and the increased blast radius earned it.
 
 ## Content Security Policy (NFR2)
 

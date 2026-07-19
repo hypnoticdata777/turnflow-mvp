@@ -18,7 +18,7 @@ Status legend: ✅ Done · 🟡 Partial · ⬜ Not started
 | FR10 | PM/Admin can export/import all project data as JSON for backup/restore. | ✅ | `backup.html` |
 | FR11 | Task status granularity (open/in-progress/blocked/overdue/completed) surfaced consistently across PM and technician views. | 🟡 | Logic exists (`tf_getTaskStatus`, now unit tested in `utils.js`); dashboard shows it, technician view only shows completed/pending |
 | FR12 | Stats view shows completed-vs-pending task ratios and cost breakdown per property. | ✅ | `stats.html`, Chart.js pie/bar |
-| FR13 | Deleting a project cascades to delete its task photo subcollections and Storage files. | ⬜ | No cleanup path yet — orphaned data today — Roadmap Phase 2 |
+| FR13 | Deleting a project cascades to delete its task photo subcollections and Storage files. | 🟡 | `deleteProject()` now deletes every photo doc + Storage object for the project's *current* task indices before deleting the project itself (2026-07-12). **Known residual gap:** if a project's task list ever shrank via editing, photos uploaded under an index beyond the current `tasks.length` are missed — the client SDK can't enumerate "every subcollection that ever existed" the way an Admin SDK/Cloud Function could. Full fix requires resolving the task-identity quirk (embedded array → real subcollection with stable IDs, see `ARCHITECTURE.md`) — a larger structural change, not folded into this pass |
 
 ## Non-Functional Requirements (NFR)
 
@@ -31,7 +31,7 @@ Status legend: ✅ Done · 🟡 Partial · ⬜ Not started
 | NFR5 | Performance | List views use paginated/cursor-based queries once project count exceeds ~100. | ⬜ | `getAllProjects()` and `stats.html` still do full-collection scans — Roadmap Phase 2 |
 | NFR6 | Maintainability | Single source of truth for Firebase config per environment (dev/staging/prod). | ⬜ | One hardcoded prod config in `firebase-config.js` — Roadmap Phase 3 |
 | NFR7 | Testability | Core business logic covered by unit tests runnable without a browser. | ✅ | `public/js/__tests__/utils.test.js` — 21 tests over status derivation, cost calc, escaping |
-| NFR8 | Data integrity | Cascading deletes prevent orphaned subcollections/Storage objects. | ⬜ | Same as FR13 — Roadmap Phase 2 |
+| NFR8 | Data integrity | Cascading deletes prevent orphaned subcollections/Storage objects. | 🟡 | Same as FR13 — covers the common case, residual gap for shrunk task lists documented there |
 | NFR9 | Usability | Destructive actions require confirmation; async actions show loading/error state instead of bare `alert()`. | 🟡 | Errors are caught and surfaced, but via `alert()`/console — Roadmap Phase 3 |
 | NFR10 | Deployability | One-command deploy with rules deployed atomically alongside hosting. | 🟡 | `firebase deploy` covers both hosting and rules today; no staging slot or pre-deploy check — Roadmap Phase 3/4 |
 

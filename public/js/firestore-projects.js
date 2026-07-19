@@ -2,7 +2,7 @@
 // TurnFlow™ Firestore Project Management
 // ===================================================
 
-import { db } from './firebase-config.js';
+import { app, db } from './firebase-config.js';
 import {
   collection,
   addDoc,
@@ -15,9 +15,15 @@ import {
   where,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import {
+  getStorage,
+  ref,
+  deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
 
 // Collection reference
 const projectsCollection = collection(db, 'projects');
+const storage = getStorage(app);
 
 // ===================================================
 // CRUD Operations for Projects
@@ -107,12 +113,47 @@ export async function updateProject(projectId, updates) {
 }
 
 /**
- * Delete a project
+ * Deletes every photo (Firestore doc + Storage object) under
+ * projects/{projectId}/tasks/{taskIndex}/photos, for every task index on
+ * the project. Task photos are keyed by array index (see
+ * docs/ARCHITECTURE.md's task-identity note), not a separate task doc ID,
+ * so there's no single subcollection to query — each index is checked.
+ * A missing/already-deleted Storage object is logged and skipped rather
+ * than aborting the whole cascade.
+ */
+async function deletePhotosForProject(projectId, taskCount) {
+  const taskIndexes = Array.from({ length: taskCount }, (_, i) => i);
+
+  await Promise.all(taskIndexes.map(async (taskIndex) => {
+    const photosCol = collection(db, `projects/${projectId}/tasks/${taskIndex}/photos`);
+    const snap = await getDocs(photosCol);
+
+    await Promise.all(snap.docs.map(async (photoDoc) => {
+      const { storagePath } = photoDoc.data();
+      if (storagePath) {
+        try {
+          await deleteObject(ref(storage, storagePath));
+        } catch (error) {
+          console.warn(`Could not delete storage object ${storagePath}:`, error);
+        }
+      }
+      await deleteDoc(photoDoc.ref);
+    }));
+  }));
+}
+
+/**
+ * Delete a project, cascading to delete its task photos (Firestore docs
+ * and Storage objects) so deleting a project doesn't leave orphaned data
+ * behind indefinitely.
  * @param {string} projectId - The project ID
  * @returns {Promise<void>}
  */
 export async function deleteProject(projectId) {
   try {
+    const project = await getProject(projectId);
+    await deletePhotosForProject(projectId, (project.tasks || []).length);
+
     const docRef = doc(db, 'projects', projectId);
     await deleteDoc(docRef);
   } catch (error) {
