@@ -279,6 +279,54 @@ Full walkthrough, including the local-dev debug-token step (`localhost`
 isn't a registered domain, so App Check rejects it by default once
 enforcement is on), is in `SETUP.md`.
 
+## Pagination (NFR5)
+
+`getProjectsPage({ pageSize, cursor })` in `firestore-projects.js` replaces
+`dashboard.html`'s use of `getAllProjects()`. It queries
+`orderBy('createdAt', 'desc')` + `limit(pageSize + 1)` (the `+1` is a
+standard trick: fetch one extra to know whether there's a next page
+without a separate count query, then trim it off), plus `startAfter(cursor)`
+on subsequent pages. `cursor` is the previous page's last
+`QueryDocumentSnapshot` — Firestore's `startAfter()` needs the actual
+snapshot to resume ordering correctly, not just the document's `id`.
+`dashboard.js` keeps `cursor`/`totalLoaded` in module-level state and
+appends each page's cards via `insertAdjacentHTML` rather than replacing
+`innerHTML`, so the click/change listeners — delegated on the `#projectList`
+container, not attached per-card — keep working on newly-appended cards
+with no extra wiring. No composite Firestore index is needed: a single
+`orderBy` with no additional `where()` clause is auto-indexed.
+
+This assumes every project has `createdAt` set — true for every project
+created through the app (`createProject()` always sets it via
+`serverTimestamp()`), but a project inserted directly via the Firebase
+console without that field would silently never appear in the paginated
+list (Firestore's `orderBy` excludes documents missing the ordered
+field). Not a new risk introduced by pagination — a hand-created
+document missing expected fields already breaks other assumptions in
+this codebase (e.g. `project.tasks.reduce(...)` assumes `tasks` exists)
+— just worth naming so it isn't a surprise later.
+
+**`getAllProjects()` (full-collection fetch) is kept, deliberately, for
+two remaining callers where it's still the right tool:**
+- `backup.html` — exporting *everything* is the entire point of a backup.
+- `stats.html` — investigated switching this to Firestore's
+  `count()`/`sum()` aggregation queries, which run server-side and would
+  meaningfully cut reads/bandwidth. **They don't actually fit this data
+  model**: aggregation queries count matching *documents* or sum a stored
+  numeric *field* on each — they can't reach into `tasks` (an embedded
+  array on each project doc, not a subcollection — see the task-identity
+  note above) and sum a per-task computed expression like
+  `hours * rate + material`, or count array elements matching
+  `completed == true`. A real fix would mean denormalizing summary
+  fields (`totalCost`, `completedTaskCount`, etc.) onto each project doc
+  and keeping them in sync on every write that touches `tasks` (create,
+  update, `markTaskComplete`) — real scope and real drift risk, for a
+  stats page that isn't in the main PM/tech/client workflow. Left as a
+  full scan for now; revisit alongside the task-identity subcollection
+  migration already tracked for FR13, since promoting `tasks` to real
+  documents would make both this and per-task aggregation straightforward
+  at the same time.
+
 ## File map
 
 ```

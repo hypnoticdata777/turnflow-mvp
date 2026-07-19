@@ -7,6 +7,60 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 2: dashboard pagination (NFR5) — Phase 2 addressed
+
+- **Added:** `getProjectsPage({ pageSize, cursor })` in
+  `firestore-projects.js` — cursor-based (`orderBy('createdAt','desc')` +
+  `limit` + `startAfter`), fetches `pageSize + 1` to detect `hasMore`
+  without a separate count query. `dashboard.html`/`dashboard.js` switched
+  from `getAllProjects()` to this, 20 projects per page behind a "Load
+  More" button. No composite Firestore index needed (single `orderBy`,
+  no `where`).
+- **Kept the click/change listeners delegated on the container**, not
+  re-attached per card — appended pages from "Load More" just work with
+  zero additional wiring, since event delegation already handled this.
+  Verified the card-template/event-handler logic is byte-identical to
+  before (`diff -B -w` against the previous commit) — only the fetch
+  mechanism and surrounding page-load control flow changed.
+- **Investigated and rejected (documented, not silently dropped): Firestore
+  aggregation queries for `stats.html`.** The plan was to replace its
+  `getAllProjects()` + client-side loop with `count()`/`sum()` aggregation
+  queries, cutting reads and bandwidth. Turns out this doesn't fit the
+  data model: `tasks` is an embedded array field on each project
+  document, not a subcollection, and Firestore's aggregation queries can
+  only count matching *documents* or sum a stored numeric *field* on
+  each — they can't reach into an array and sum a per-task computed
+  expression (`hours*rate+material`) or count elements matching a
+  condition. A real fix needs denormalized summary fields
+  (`totalCost`, `completedTaskCount`) kept in sync on every write that
+  touches `tasks` — real scope and drift risk for a stats page outside
+  the core PM/tech/client workflow. Left `stats.html` as a full scan;
+  noted for revisit alongside the task-identity subcollection migration
+  already tracked for FR13, since that same migration would make
+  per-task aggregation straightforward too. Better to say "this doesn't
+  actually work as hoped" than ship something that looks like an
+  optimization but silently doesn't apply.
+- **Behavior change worth flagging, found while diffing:** the old code
+  wrapped `getAllProjects()` and both `getUsersByRole()` calls in one
+  `Promise.all`/try-catch — meaning a hiccup in the tech/client lookup
+  would have blocked the *entire* project list from rendering, even
+  though that had nothing to do with project data. The new code fetches
+  techs/clients separately; a failure there now just degrades the
+  assignment dropdowns instead of taking down the whole dashboard. Net
+  improvement, called out explicitly rather than left as an
+  undocumented side effect.
+- `backup.html` keeps `getAllProjects()` — exporting everything is the
+  entire point of a backup, so a full scan there is correct, not a gap.
+- No test changes (this is Firestore query logic, no pure function to
+  extract — consistent with the rest of `firestore-projects.js`). 42/42
+  existing tests still passing; `node --check` clean on both touched files.
+- **Phase 2 is now fully addressed** (all 5 items have a checkmark in
+  `ROADMAP.md`), though several carry documented partial gaps rather
+  than clean closure — see the Phase 2 summary note there and the
+  `REQUIREMENTS.md` status column for the honest per-item picture.
+
+---
+
 ### 2026-07-12 — Phase 2: login security, both layers (NFR3)
 
 - **Added — client-side lockout (always on):** `auth.js`'s login form now
