@@ -85,13 +85,43 @@ Goal: safe to point at from outside your own laptop.
       and in the parallel Firestore photos-subcollection rule) still
       isn't `clientId`-scoped — tracked as a residual NFR1 item, to fix
       in one pass across both rule files so they don't disagree.
-- [ ] **NFR2 — CSP headers** in `firebase.json`'s `hosting.headers`.
+- [x] **NFR2 — CSP headers.** (done 2026-07-12, fully closed on the
+      script side) First pass added the header with `'unsafe-inline'`
+      kept on `script-src`/`style-src` since every page had inline
+      `<script type="module">` blocks. Revisited same-day: extracted all
+      ~25 inline blocks across 12 HTML pages into external files
+      (`public/js/guard-pm-admin.js`, `wire-logout.js`,
+      `public/js/pages/*`), fixed `estimate.html`'s one inline `onclick`
+      attribute (also governed by `script-src`), then dropped
+      `'unsafe-inline'` from `script-src` entirely. Verified without a
+      live browser via byte-for-byte diff of every extracted file
+      against the original inline content plus `node --check` on every
+      new file — see `DEVLOG.md`. Found and fixed a real bug along the
+      way: `new-project.html`'s hand-rolled guard had the exact auth
+      race condition `requireRole`/`requireAnyRole` were built to fix.
+      `style-src` still needs `'unsafe-inline'` — architectural, not
+      deferred: the Tailwind Play CDN injects runtime CSS, and removing
+      that requires dropping the CDN approach (see the Vite-migration
+      trigger below), which is out of scope for a header change.
 - [ ] **NFR3 — Login rate limiting / App Check.**
-- [ ] **FR13 / NFR8 — Cascading delete** for `tasks/{id}/photos` and
-      their Storage objects when a project is deleted. A Cloud Function
-      on document delete is the cleanest fix; a client-side batched
-      delete works if you want to stay serverless a while longer (see
-      "When to introduce a backend" below).
+- [x] **FR13 / NFR8 — Cascading delete.** (done 2026-07-12, common case)
+      `deleteProject()` now deletes every photo doc + Storage object for
+      the project's current task indices before deleting the project
+      itself — a client-side batched delete, chosen over a Cloud
+      Function to stay serverless (no Blaze plan / functions pipeline in
+      this repo yet — see "When to introduce a backend" below). Required
+      loosening the photos-delete rule in both `firestore.rules` and
+      `storage.rules` from `admin`-only to `pm`/`admin`, matching the
+      project-level delete permission a plain `pm` already has. Also
+      added a `confirm()` prompt on the dashboard's delete button, since
+      the cascade makes delete meaningfully more destructive than before
+      and there wasn't one previously. **Known residual gap:** if a
+      project's task list ever shrank via editing, photos uploaded to a
+      since-removed task (now beyond the current `tasks.length`) aren't
+      caught — the client SDK can't enumerate subcollection paths that
+      no longer correspond to an array index. Full fix needs the
+      task-identity migration noted in `ARCHITECTURE.md` (embedded array
+      → real subcollection with stable IDs).
 - [ ] **NFR5 — Pagination.** Replace `getAllProjects()`'s full-collection
       fetch with cursor-based pages (`startAfter`) on the dashboard, and
       stop `stats.html` from pulling the entire collection client-side.

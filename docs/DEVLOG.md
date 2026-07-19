@@ -7,6 +7,149 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 2: cascading delete for task photos (FR13/NFR8)
+
+- **Added:** `deleteProject()` in `firestore-projects.js` now walks every
+  task index on the project (`0..tasks.length-1`), deletes every photo's
+  Storage object (by its stored `storagePath`) and Firestore doc under
+  `tasks/{index}/photos`, then deletes the project doc itself. A
+  missing/already-deleted Storage object is logged and skipped rather
+  than aborting the whole delete.
+- **Chose client-side over Cloud Functions:** the roadmap's other option
+  (a Cloud Function on document delete) needs the Blaze billing plan and
+  a functions deploy pipeline, neither of which exist in this repo —
+  would have meant introducing new infrastructure to close a data-
+  integrity gap. Client-side batched delete gets the same practical
+  result without that dependency.
+- **Rule change required:** `firestore.rules`'s photos-subcollection
+  delete and `storage.rules`'s delete were both `admin`-only. A plain
+  `pm` deleting their own project (which they're fully allowed to do)
+  would have had the project doc deleted but then hit permission-denied
+  on every photo cleanup call — a real inconsistency, not a hardening
+  choice, since `pm` already has full delete rights at the project
+  level. Loosened both to `pm`/`admin`.
+- **Added a confirmation prompt that didn't exist before:** the
+  dashboard's delete button had no `confirm()` at all. Now that delete
+  also permanently destroys uploaded photos, not just a project record,
+  the blast radius of a misclick grew — added a `confirm()` naming the
+  photo deletion explicitly.
+- **Found, documented, not fixed:** the cascade only knows about task
+  indices the *current* `tasks` array has. If a task was ever removed via
+  editing after photos were uploaded to it, those photos live under an
+  index beyond today's array length — a real subcollection Firestore
+  still has that nothing queries for, since the client SDK can't
+  enumerate "every subcollection path that ever existed" the way an
+  Admin SDK/Cloud Function could. The roadmap had already flagged
+  resolving the task-identity quirk (embedded array vs. subcollection
+  keyed by array index) as something to do *before* this cascading
+  delete — it wasn't, because that's a larger structural migration
+  (real task subcollection with stable IDs) than fit inside this pass.
+  Documented in `ARCHITECTURE.md`, `REQUIREMENTS.md` (FR13 marked 🟡, not
+  ✅), and `ROADMAP.md` rather than silently left for someone to discover.
+- No test changes — this logic is Firestore/Storage I/O with no pure
+  function to extract, consistent with the rest of `firestore-projects.js`
+  (none of which is unit tested; see the Phase 0 stretch goal for a rules/
+  emulator test layer that would cover this properly). 34/34 existing
+  tests still passing.
+
+---
+
+### 2026-07-12 — Phase 2: close out CSP for real (NFR2) — inline script extraction
+
+Follow-up to the CSP pass earlier today. Asked whether to leave
+`script-src 'unsafe-inline'` as a known gap or close it now; decided the
+risk was manageable (every inline block is already `type="module"`,
+which executes identically whether inline or external — the only real
+failure modes are a wrong path or a missed block, both catchable without
+a browser) and closed it same-day.
+
+**What changed:**
+- Extracted all ~25 inline `<script type="module">` blocks across all 12
+  HTML pages into external files:
+  - `public/js/guard-pm-admin.js` — the `requireAnyRole(['pm','admin'])`
+    guard, previously copy-pasted identically into 6 files (`dashboard`,
+    `backup`, `contacts`, `pending-send`, `stats`, `estimate`). Confirmed
+    byte-identical across all 6 before consolidating.
+  - `public/js/wire-logout.js` — the `#logoutBtn` click-to-`logout()`
+    wiring, previously copy-pasted identically into 5 files. Same
+    byte-identical confirmation.
+  - `public/js/pages/*.js` — page-specific logic that only appeared
+    once: `dashboard.js`, `backup.js`, `contacts.js`, `pending-send.js`,
+    `estimate.js`, `seed.js`, `technician-projects.js`, plus
+    `pending-approval.guard.js`/`.header.js`/`.js` and
+    `technician.guard.js`/`.header.js` for the two single-role pages.
+- Also fixed `estimate.html`'s one inline `onclick="downloadPDF()"`
+  attribute — inline event-handler attributes are governed by
+  `script-src` too, so leaving it would have forced `'unsafe-inline'`
+  back on regardless of the rest of the extraction. Converted to
+  `getElementById + addEventListener`, dropped the `window.downloadPDF`
+  global it depended on.
+- `firebase.json`'s CSP: removed `'unsafe-inline'` from `script-src`.
+  `style-src` keeps it — architectural, not deferred (Tailwind Play CDN
+  injects runtime CSS; see `ARCHITECTURE.md`).
+
+**Bug found and fixed along the way, not just moved:** `new-project.html`
+had its own hand-rolled guard using `currentUser()` (a synchronous read
+of `auth.currentUser`) instead of the shared `requireAnyRole()` — this is
+*exactly* the auth race condition that `requireRole`/`requireAnyRole`
+were built to fix, per the 2026-03-01 devlog entry below. It never got
+that fix because it never called the shared helper. It does now
+(`public/js/guard-pm-admin.js`), so a PM refreshing that page can no
+longer get bounced to `index.html` by a slow-resolving session.
+
+**How this was verified without a live browser** (the constraint that
+made this a judgment call in the first place):
+1. `node --check` on every one of the 14 new files — confirmed valid JS
+   syntax (Node's ES module parser handles `https://` import specifiers
+   fine for a syntax-only check, since it doesn't try to resolve them).
+2. Byte-for-byte diff (`diff -B -w`, ignoring blank lines/whitespace) of
+   every extracted file against the exact original inline content pulled
+   from `git show HEAD:<file>` — confirmed the *only* differences were
+   the intended ones: relative import paths updated (`./public/js/x.js`
+   → `../x.js`, since the file's own location changed) and the two
+   deliberate fixes above. No accidental content loss or retyping
+   errors anywhere.
+3. `grep` sweep confirming zero remaining inline `<script type="module">`
+   blocks and zero remaining inline `on*=` attributes anywhere in the repo.
+4. Full `npm test` — 34/34 still passing (this refactor didn't touch
+   `utils.js` or its tests).
+
+**Not changed:** page behavior, DOM structure, event wiring, and
+execution order are all identical to before — `type="module"` scripts
+already execute deferred (after parse, in document order) whether inline
+or external, so extraction is a pure relocation, not a timing change.
+
+---
+
+### 2026-07-12 — Phase 2: CSP + security headers (NFR2)
+
+- **Added:** `Content-Security-Policy` (plus `X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`) to `firebase.json`'s
+  `hosting.headers`, applied to every response.
+- **Investigated first, then asked before implementing:** checked how
+  many inline `<script type="module">` blocks exist across the app
+  (~25, across 12 of 12 HTML pages) before writing the CSP, because a
+  real `script-src` lockdown (no `'unsafe-inline'`) would break every one
+  of them today. Rather than silently pick between "ship a weak/
+  theatrical CSP" and "refactor every page's inline scripts into
+  external files without being able to browser-test the result here,"
+  surfaced the tradeoff and asked — chose the pragmatic option: allowlist
+  the 4 real external script hosts (`cdn.tailwindcss.com`,
+  `www.gstatic.com`, `cdnjs.cloudflare.com`, `cdn.jsdelivr.net`), lock
+  down `frame-ancestors`/`object-src`/`base-uri`/`form-action` fully (no
+  exceptions needed there), but keep `'unsafe-inline'` on `script-src`/
+  `style-src` since the current architecture requires it.
+- **What this actually buys:** blocks arbitrary third-party script/
+  resource loading from any host not on the allowlist, and closes
+  clickjacking/embedding/base-tag-injection vectors completely. **What it
+  does not do:** stop an XSS payload injected as an inline `<script>` tag
+  from executing — that specific protection requires the inline-script
+  extraction refactor, tracked as a named follow-up in `ROADMAP.md`/
+  `REQUIREMENTS.md`, not silently dropped.
+- No code/test changes — headers + docs only. 34/34 tests still passing.
+
+---
+
 ### 2026-07-12 — Phase 2: Storage rules (NFR1) — first Phase 2 item
 
 - **Added:** `storage.rules` — the biggest unreviewed security gap called

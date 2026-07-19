@@ -49,12 +49,16 @@ service cloud.firestore {
 
       // Photos subcollection (nested under tasks)
       // Any authenticated user can read photos.
-      // Technicians can upload their own photos; admins can delete.
+      // Technicians can upload their own photos.
+      // PM/Admin can delete — matches the project-level delete rule above,
+      // since deleting a project cascades to delete its task photos too
+      // (see deleteProject() in firestore-projects.js); admin-only here
+      // would leave a plain pm unable to fully delete their own project.
       match /tasks/{taskId}/photos/{photoId} {
         allow read: if isAuthed();
         allow create: if isTech() && request.auth.uid == request.resource.data.techId;
         allow update: if isAdmin();
-        allow delete: if isAdmin();
+        allow delete: if isPMorAdmin();
       }
     }
 

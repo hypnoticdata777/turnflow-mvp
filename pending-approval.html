@@ -10,28 +10,9 @@
 
 <body class="bg-gray-100">
 
-  <script type="module">
-    import { requireRole } from './public/js/auth.js';
-    await requireRole('client'); // if not client or not logged in -> redirected
-  </script>
+  <script type="module" src="public/js/pages/pending-approval.guard.js"></script>
 
-  <script type="module">
-    import { currentUser, logout } from './public/js/auth.js';
-    document.addEventListener('DOMContentLoaded', () => {
-      const u = currentUser();
-      const hdr = document.createElement('header');
-      hdr.className = 'w-full bg-white border-b p-3 flex items-center justify-between sticky top-0 z-50';
-      hdr.innerHTML = `
-        <div class="font-semibold">TurnFlow™ — Client Portal</div>
-        <div class="text-sm flex items-center gap-3">
-          <span class="text-gray-600">${u?.email ?? ''}</span>
-          <button id="tf-logout" class="px-3 py-1 rounded bg-gray-800 text-white">Logout</button>
-        </div>
-      `;
-      document.body.prepend(hdr);
-      document.getElementById('tf-logout')?.addEventListener('click', async () => { await logout(); });
-    });
-  </script>
+  <script type="module" src="public/js/pages/pending-approval.header.js"></script>
 
   <main class="max-w-4xl mx-auto p-6">
     <h1 class="text-3xl font-bold mb-2">Your Projects</h1>
@@ -39,59 +20,6 @@
     <div id="projectList" class="space-y-4"></div>
   </main>
 
-  <script type="module">
-    import { currentUser } from './public/js/auth.js';
-    import { getProjectsForClient } from './public/js/firestore-projects.js';
-    import { escHtml, tf_getTaskStatus, tf_statusLabel, calculateEstimateTotal, projectStatusBadgeClasses } from './public/js/utils.js';
-
-    const projectList = document.getElementById('projectList');
-
-    async function loadProjects() {
-      const u = currentUser();
-      if (!u) return; // requireRole('client') above already redirects unauthenticated users
-
-      projectList.innerHTML = '<p class="text-gray-500">Loading…</p>';
-
-      try {
-        const projects = await getProjectsForClient(u.uid);
-
-        if (projects.length === 0) {
-          projectList.innerHTML = '<p class="text-gray-500">No projects have been shared with you yet.</p>';
-          return;
-        }
-
-        projectList.innerHTML = projects.map((p) => {
-          const total = calculateEstimateTotal(p.tasks || []);
-          const taskRows = (p.tasks || []).map((t) => {
-            const key = tf_getTaskStatus(t);
-            const label = tf_statusLabel(key);
-            return `
-              <li class="flex justify-between items-center border-t py-1.5 text-sm">
-                <span>${escHtml(t.name)}</span>
-                <span class="tf-badge" data-status="${escHtml(key)}">${escHtml(label)}</span>
-              </li>`;
-          }).join("");
-
-          return `
-            <div class="border p-4 rounded bg-white shadow">
-              <div class="flex justify-between items-start">
-                <h2 class="text-xl font-semibold">${escHtml(p.projectName)}</h2>
-                <span class="text-xs font-medium px-2 py-1 rounded-full ${projectStatusBadgeClasses(p.status)}">${escHtml(p.status || 'Pending Approval')}</span>
-              </div>
-              <p class="text-sm mt-1"><strong>Address:</strong> ${escHtml(p.address)}${p.unit ? ', Unit ' + escHtml(p.unit) : ''}</p>
-              <p class="text-sm"><strong>Target Date:</strong> ${escHtml(p.date)}</p>
-              <p class="text-sm"><strong>Estimate Total:</strong> $${total.toFixed(2)}</p>
-              <h3 class="mt-3 font-semibold text-sm">Tasks</h3>
-              <ul class="mt-1">${taskRows || '<li class="text-sm text-gray-500 py-1.5">No tasks listed.</li>'}</ul>
-            </div>`;
-        }).join("");
-      } catch (error) {
-        console.error('Error loading client projects:', error);
-        projectList.innerHTML = '<p class="text-red-500">Failed to load your projects. Check your connection and try refreshing.</p>';
-      }
-    }
-
-    loadProjects();
-  </script>
+  <script type="module" src="public/js/pages/pending-approval.js"></script>
 </body>
 </html>

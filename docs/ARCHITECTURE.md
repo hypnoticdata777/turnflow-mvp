@@ -64,9 +64,9 @@ projects/{projectId}
   ]
   createdAt, updatedAt   // serverTimestamp()
 
-  tasks/{taskId}/photos/{photoId}      // NOTE: taskId here is a Storage-path key,
-    type: "before" | "after" | "receipt"  // NOT the same as an index into projects.tasks[]
-    url, storagePath, techId, createdAt
+  tasks/{taskId}/photos/{photoId}      // taskId here IS the array index into
+    type: "before" | "after" | "receipt"  // projects.tasks[], as a string — see the
+    url, storagePath, techId, createdAt   // modeling quirk note just below
 
 contacts/{contactId}
   (owner/client contact fields)
@@ -89,14 +89,28 @@ manually granting each one.
 
 **Known modeling quirk worth flagging:** `tasks` on a project is an
 *embedded array* (no task-level document IDs), but photos live in a
-*subcollection* keyed by `taskId` — a string typed into the technician
-upload form / selected by array index. These are two different notions of
-"task identity" living side by side. It works today because the
-technician UI populates the task dropdown from the same array index it
-writes into the photos path, but it's fragile: reordering or deleting a
-task from `projectData.tasks` silently orphans or mismatches existing
-photos. Worth resolving before FR7 (status lifecycle) or FR13 (cascading
-delete) get built on top of it — see Roadmap Phase 2.
+*subcollection* keyed by `taskId` — which is the task's array index,
+selected from the technician upload form's dropdown. These are two
+different notions of "task identity" living side by side. It works today
+because the technician UI populates the task dropdown from the same array
+index it writes into the photos path, but it's fragile: reordering or
+deleting a task from `projectData.tasks` silently orphans or mismatches
+existing photos.
+
+This directly limits FR13's cascading delete (2026-07-12): `deleteProject()`
+cleans up `tasks/{index}/photos` for every index `0..tasks.length-1` at
+delete time, which is correct for a project whose task list never shrank.
+But if a task was ever removed via editing after photos were uploaded to
+it, those photos now live under an index *beyond* the current array
+length — a real subcollection Firestore still has, that nothing queries
+for, because the client SDK has no way to enumerate "every subcollection
+path that ever existed" the way an Admin SDK/Cloud Function could. This
+was flagged as a "resolve before Phase 2's cascading delete" item and
+wasn't — the full fix (migrating `tasks` to a real subcollection with
+stable document IDs) is a larger structural change than fit in the
+cascading-delete pass itself; see the Firestore-scaling trigger in
+`ROADMAP.md`'s scaling section, where this promotion was already
+anticipated for a different reason (write-cost at scale).
 
 ## Storage layout (Firebase Storage)
 
@@ -110,7 +124,7 @@ turnflow/{projectId}/{taskId}/{type}/{uid}/{timestamp}_{filename}
 
 - `users/{userId}`: read your own doc, or any user doc if you're `pm`/`admin` (needed so PMs can list technicians/clients for assignment — see `firestore-users.js`); write only if `admin`.
 - `projects/{projectId}`: read if authenticated **and** (not a `client`, or `resource.data.clientId == request.auth.uid`) — `pm`/`admin`/`tech` read any project, `client` only reads projects explicitly shared with them; write (`create`/`update`/`delete`) only if `pm`/`admin`.
-- `projects/{projectId}/tasks/{taskId}/photos/{photoId}`: read if authenticated (not currently `clientId`-scoped — see NFR1 residual gap in `REQUIREMENTS.md`); create only by the `tech` whose `uid` matches `techId` on the doc; update/delete only `admin`.
+- `projects/{projectId}/tasks/{taskId}/photos/{photoId}`: read if authenticated (not currently `clientId`-scoped — see NFR1 residual gap in `REQUIREMENTS.md`); create only by the `tech` whose `uid` matches `techId` on the doc; update `admin` only; delete `pm`/`admin` (loosened from `admin`-only on 2026-07-12 — a plain `pm` deleting their own project needs to also delete its photos, since `deleteProject()` now cascades; see FR13).
 - `contacts/{contactId}`: read if authenticated; write only `pm`/`admin`.
 
 `storage.rules` (added 2026-07-12, wired into `firebase.json`'s new
@@ -126,13 +140,96 @@ mirroring the Firestore photos-subcollection rule so the two don't drift:
   `users/{uid}.role`, the same role source `firestore.rules` uses, so a
   client or PM can't write into a tech's upload path even though they're
   authenticated.
-- Delete: `admin` only.
+- Delete: `pm`/`admin` (loosened from `admin`-only alongside the matching
+  Firestore rule above, same reason: FR13's cascading delete).
 - Everything outside the known `turnflow/...` path is denied by default
   (`match /{allPaths=**} { allow read, write: if false; }`).
 
 This closes the biggest half of NFR1's Storage gap. What's still open:
 the read-side `clientId` scoping (tracked above) and rate limiting/App
 Check (NFR3, still Phase 2 todo).
+
+## Cascading delete (FR13 / NFR8)
+
+`deleteProject()` in `firestore-projects.js` no longer just deletes the
+project document. Before doing that, it walks every task index
+`0..tasks.length-1`, queries that index's `photos` subcollection, and for
+each photo doc: deletes the Storage object at its `storagePath` (a
+missing/already-gone object is logged and skipped, not treated as fatal),
+then deletes the photo doc itself. Only after all of that succeeds does
+it delete the project doc.
+
+This is a **client-side batched delete**, not a Cloud Function — a
+deliberate choice to stay serverless (Cloud Functions need the Blaze
+billing plan and a functions deploy pipeline neither of which exist in
+this repo yet; see the "when to introduce a backend" trigger in
+`ROADMAP.md`'s scaling section). The tradeoff: it only knows about task
+indices the *current* `tasks` array has. See the task-identity quirk note
+above for the resulting gap (photos under indices from a task that was
+since removed via editing aren't caught).
+
+Because this cascade is more destructive than the old "just delete the
+project doc" behavior, `script.js`'s `deleteProject()` (the dashboard's
+click handler, not to be confused with the same-named Firestore function)
+now shows a `confirm()` prompt naming the photo deletion explicitly —
+there wasn't one before, and the increased blast radius earned it.
+
+## Content Security Policy (NFR2)
+
+`firebase.json`'s `hosting.headers` sets a CSP on every response (plus
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`).
+
+`script-src` has **no `'unsafe-inline'`** — real script injection
+protection, not just a header for show:
+
+- Allowlists exactly the four external hosts the app loads scripts from
+  (`cdn.tailwindcss.com`, `www.gstatic.com`, `cdnjs.cloudflare.com` for
+  jsPDF, `cdn.jsdelivr.net` for Chart.js).
+- No inline scripts of any kind are allowed to execute — not
+  `<script>...</script>` blocks, not `onclick="..."` attributes. This
+  required a refactor (2026-07-12): every page previously had 1–3 inline
+  `<script type="module">` blocks doing real work (auth guards, DOM
+  wiring). All ~25 of them, across all 12 HTML pages, were extracted
+  into external files under `public/js/` (shared logic like the
+  `pm`/`admin` guard and logout-button wiring) and `public/js/pages/`
+  (page-specific logic). `estimate.html`'s one inline `onclick="downloadPDF()"`
+  attribute was also converted to `addEventListener`, since inline event
+  handlers are governed by `script-src` too and would have forced
+  `'unsafe-inline'` back on regardless of the rest of the cleanup.
+  See `DEVLOG.md` for the file-by-file breakdown and the verification
+  method (byte-for-byte diff of every extracted file against the
+  original inline content, plus `node --check` on every new file — no
+  live browser available in this environment, so correctness was
+  established by diffing and syntax-checking rather than clicking
+  through each page).
+- Two real bugs surfaced and were fixed during the extraction, not just
+  moved: `new-project.html` had its own hand-rolled auth guard using
+  `currentUser()` (a synchronous read of `auth.currentUser`) instead of
+  the shared `requireAnyRole()` — exactly the auth race condition that
+  was supposedly fixed project-wide back in Phase 0. It never adopted
+  that fix because it never used the shared helper. Now it does
+  (`public/js/guard-pm-admin.js`). And the `onclick` fix above, which
+  wasn't just a CSP nicety — it removed a `window.downloadPDF` global.
+- `style-src` still needs `'unsafe-inline'` — this is a separate,
+  architectural constraint, not an oversight: the Tailwind Play CDN
+  script injects its generated CSS via a runtime `<style>` tag, and
+  there's no way to avoid that short of dropping the CDN approach
+  entirely (see the Vite migration trigger in `ROADMAP.md`'s scaling
+  section). Extracting inline scripts doesn't touch this.
+- `connect-src`/`img-src` allow `https://*.googleapis.com` (Firestore,
+  Auth, Storage all resolve under this) plus `data:` for `img-src`.
+- `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`,
+  `form-action 'self'` are all fully enforced with no exceptions.
+
+**Shared/page-specific script layout**, introduced by this refactor:
+
+```
+public/js/guard-pm-admin.js   Shared pm/admin page guard (6 pages)
+public/js/wire-logout.js      Shared #logoutBtn wiring (5 pages)
+public/js/pages/{page}.js           Page-specific main logic
+public/js/pages/{page}.guard.js     Page-specific guard (single-role pages)
+public/js/pages/{page}.header.js    Page-specific custom header builder
+```
 
 ## File map
 
@@ -156,16 +253,25 @@ public/js/
   firestore-projects.js   Project CRUD + getProjectsByStatus/getProjectsForClient
   firestore-contacts.js   Contact CRUD
   firestore-users.js      Read-only user lookups (e.g. getUsersByRole('tech'|'client'))
-  script.js               Dashboard/new-project/stats page logic, DOM wiring
+  script.js               Sidebar loading, new-project form + stats-chart DOM wiring,
+                          window.* exports (viewProject/editProject/deleteProject/
+                          markTaskComplete/tf_getTaskStatus/tf_statusLabel) consumed by
+                          public/js/pages/dashboard.js
   technician.js            Photo upload + gallery logic
   utils.js                Pure helpers: escHtml, task status derivation, cost calc,
                           assignment labels, PROJECT_STATUSES/projectStatusBadgeClasses()
                           (FR7's shared source of truth, used by both dashboard.html's
                           editable status dropdown and pending-approval.html's read-only badge)
+  guard-pm-admin.js       Shared pm/admin page guard (CSP extraction, 2026-07-12)
+  wire-logout.js          Shared #logoutBtn wiring (CSP extraction, 2026-07-12)
+  pages/                  Page-specific logic extracted from inline <script> blocks
+                          (dashboard.js, backup.js, contacts.js, pending-send.js,
+                          estimate.js, seed.js, technician-projects.js, plus
+                          {page}.guard.js/{page}.header.js for the single-role pages)
   __tests__/utils.test.js Vitest unit tests for utils.js
 
 firestore.rules           Firestore security rules
 storage.rules             Firebase Storage security rules (photo uploads)
-firebase.json             Hosting + firestore/storage rules deploy config
+firebase.json             Hosting + firestore/storage rules deploy config, CSP headers
 .github/workflows/ci.yml  CI: npm test on push/PR to main
 ```

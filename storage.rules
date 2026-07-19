@@ -14,18 +14,21 @@ service firebase.storage {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    function isAdmin() {
-      return isAuthed() && getRole() == 'admin';
+    function isPMorAdmin() {
+      return isAuthed() && getRole() in ['pm', 'admin'];
     }
 
     // turnflow/{projectId}/{taskId}/{type}/{uid}/{fileName}
     // Mirrors the projects/{id}/tasks/{id}/photos/{id} Firestore rule:
     // any authenticated user can read, only the uploading tech can write
-    // their own photo, only admins can delete.
+    // their own photo. Delete is pm/admin (not admin-only) so a plain pm
+    // deleting their own project can also cascade-delete its photos —
+    // see deleteProject() in firestore-projects.js and the matching note
+    // in firestore.rules.
     match /turnflow/{projectId}/{taskId}/{type}/{uid}/{fileName} {
       allow read: if isAuthed();
       allow write: if isAuthed() && request.auth.uid == uid && getRole() == 'tech';
-      allow delete: if isAdmin();
+      allow delete: if isPMorAdmin();
     }
 
     // Deny everything outside the known upload path by default.
