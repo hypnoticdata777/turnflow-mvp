@@ -3,6 +3,24 @@
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { auth, db } from './firebase-config.js'; // Import our centralized auth and db
+import { getLockoutRemainingMs, recordFailedLogin, clearLoginAttempts } from './utils.js';
+
+// --- Login lockout persistence (NFR3, partial — see docs/ARCHITECTURE.md) ---
+// Client-side only: deters repeated manual retries from the same browser,
+// does not stop a script hitting Firebase Auth's REST API directly.
+const LOGIN_ATTEMPTS_KEY = 'tf_login_attempts';
+
+function loadLoginAttempts() {
+    try {
+        return JSON.parse(localStorage.getItem(LOGIN_ATTEMPTS_KEY)) || {};
+    } catch {
+        return {};
+    }
+}
+
+function saveLoginAttempts(attempts) {
+    localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
+}
 
 // --- Constants and Helpers ---
 const ROLES = { tech: "tech", pm: "pm", client: "client", admin: "admin" };
@@ -132,11 +150,23 @@ if (isLoginPage) {
         const email = e.target.email.value;
         const password = e.target.password.value;
 
+        const remainingMs = getLockoutRemainingMs(loadLoginAttempts(), email);
+        if (remainingMs > 0) {
+            errorMessage.textContent = `Too many failed attempts. Try again in ${Math.ceil(remainingMs / 1000)}s.`;
+            return;
+        }
+
         try {
             await login(email, password);
+            saveLoginAttempts(clearLoginAttempts(loadLoginAttempts(), email));
         } catch (error) {
             console.error("Login failed:", error);
-            errorMessage.textContent = 'Invalid email or password.';
+            const updated = recordFailedLogin(loadLoginAttempts(), email);
+            saveLoginAttempts(updated);
+            const newRemainingMs = getLockoutRemainingMs(updated, email);
+            errorMessage.textContent = newRemainingMs > 0
+                ? `Too many failed attempts. Try again in ${Math.ceil(newRemainingMs / 1000)}s.`
+                : 'Invalid email or password.';
         }
     });
 }

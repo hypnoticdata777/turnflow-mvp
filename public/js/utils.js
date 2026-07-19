@@ -116,3 +116,47 @@ export function projectStatusBadgeClasses(status) {
     default: return 'bg-yellow-100 text-yellow-800'; // Pending Approval / anything else
   }
 }
+
+/**
+ * Client-side login lockout (NFR3, partial — see docs/ARCHITECTURE.md).
+ * Pure functions over an `attempts` map so they're unit-testable; auth.js
+ * wires them to actual localStorage. This deters casual repeated retries
+ * from the same browser — it does NOT stop a script hitting Firebase
+ * Auth's REST API directly. That's what App Check (also added alongside
+ * this) is for.
+ *
+ * attempts shape: { [emailKey]: { count: number, lockUntil: number } }
+ */
+export const LOGIN_LOCKOUT_THRESHOLD = 5;
+export const LOGIN_LOCKOUT_MS = 30_000;
+
+export function normalizeEmailKey(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+/** Milliseconds remaining in the lockout for this email, or 0 if not locked out. */
+export function getLockoutRemainingMs(attempts, email, now = Date.now()) {
+  const entry = attempts?.[normalizeEmailKey(email)];
+  if (!entry || entry.lockUntil <= now) return 0;
+  return entry.lockUntil - now;
+}
+
+/** Returns a new attempts map with one more failure recorded for this email. */
+export function recordFailedLogin(attempts, email, now = Date.now()) {
+  const key = normalizeEmailKey(email);
+  const prevCount = attempts?.[key]?.count || 0;
+  const count = prevCount + 1;
+  const lockUntil = count >= LOGIN_LOCKOUT_THRESHOLD
+    ? now + LOGIN_LOCKOUT_MS
+    : (attempts?.[key]?.lockUntil || 0);
+  return { ...attempts, [key]: { count, lockUntil } };
+}
+
+/** Returns a new attempts map with this email's failure history cleared (call on successful login). */
+export function clearLoginAttempts(attempts, email) {
+  const key = normalizeEmailKey(email);
+  if (!attempts || !(key in attempts)) return attempts || {};
+  const copy = { ...attempts };
+  delete copy[key];
+  return copy;
+}
