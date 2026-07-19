@@ -10,7 +10,13 @@ import {
   assignedTechLabel,
   assignedClientLabel,
   PROJECT_STATUSES,
-  projectStatusBadgeClasses
+  projectStatusBadgeClasses,
+  LOGIN_LOCKOUT_THRESHOLD,
+  LOGIN_LOCKOUT_MS,
+  normalizeEmailKey,
+  getLockoutRemainingMs,
+  recordFailedLogin,
+  clearLoginAttempts
 } from '../utils.js';
 
 describe('escHtml', () => {
@@ -200,5 +206,71 @@ describe('projectStatusBadgeClasses', () => {
   it('falls back to the Pending Approval styling for unknown/missing status', () => {
     expect(projectStatusBadgeClasses('Pending Approval')).toBe(projectStatusBadgeClasses(undefined));
     expect(projectStatusBadgeClasses('Pending Approval')).toBe(projectStatusBadgeClasses('bogus'));
+  });
+});
+
+describe('normalizeEmailKey', () => {
+  it('trims and lowercases', () => {
+    expect(normalizeEmailKey('  Alex@Example.com  ')).toBe('alex@example.com');
+  });
+
+  it('handles null/undefined', () => {
+    expect(normalizeEmailKey(null)).toBe('');
+    expect(normalizeEmailKey(undefined)).toBe('');
+  });
+});
+
+describe('login lockout (recordFailedLogin / getLockoutRemainingMs / clearLoginAttempts)', () => {
+  const now = 1_000_000;
+
+  it('is not locked out with no history', () => {
+    expect(getLockoutRemainingMs({}, 'a@b.com', now)).toBe(0);
+  });
+
+  it('does not lock out before reaching the threshold', () => {
+    let attempts = {};
+    for (let i = 0; i < LOGIN_LOCKOUT_THRESHOLD - 1; i++) {
+      attempts = recordFailedLogin(attempts, 'a@b.com', now);
+    }
+    expect(getLockoutRemainingMs(attempts, 'a@b.com', now)).toBe(0);
+  });
+
+  it('locks out exactly at the threshold, for LOGIN_LOCKOUT_MS', () => {
+    let attempts = {};
+    for (let i = 0; i < LOGIN_LOCKOUT_THRESHOLD; i++) {
+      attempts = recordFailedLogin(attempts, 'a@b.com', now);
+    }
+    expect(getLockoutRemainingMs(attempts, 'a@b.com', now)).toBe(LOGIN_LOCKOUT_MS);
+    // still locked out just before expiry
+    expect(getLockoutRemainingMs(attempts, 'a@b.com', now + LOGIN_LOCKOUT_MS - 1)).toBe(1);
+    // unlocked once the window passes
+    expect(getLockoutRemainingMs(attempts, 'a@b.com', now + LOGIN_LOCKOUT_MS)).toBe(0);
+  });
+
+  it('is case/whitespace-insensitive on the email key', () => {
+    let attempts = {};
+    for (let i = 0; i < LOGIN_LOCKOUT_THRESHOLD; i++) {
+      attempts = recordFailedLogin(attempts, '  A@B.com', now);
+    }
+    expect(getLockoutRemainingMs(attempts, 'a@b.com  ', now)).toBe(LOGIN_LOCKOUT_MS);
+  });
+
+  it('tracks separate emails independently', () => {
+    let attempts = {};
+    for (let i = 0; i < LOGIN_LOCKOUT_THRESHOLD; i++) {
+      attempts = recordFailedLogin(attempts, 'locked@b.com', now);
+    }
+    attempts = recordFailedLogin(attempts, 'other@b.com', now);
+    expect(getLockoutRemainingMs(attempts, 'locked@b.com', now)).toBe(LOGIN_LOCKOUT_MS);
+    expect(getLockoutRemainingMs(attempts, 'other@b.com', now)).toBe(0);
+  });
+
+  it('clearLoginAttempts removes only the given email and is a no-op if absent', () => {
+    let attempts = recordFailedLogin({}, 'a@b.com', now);
+    attempts = recordFailedLogin(attempts, 'c@d.com', now);
+    const cleared = clearLoginAttempts(attempts, 'a@b.com');
+    expect(cleared['a@b.com']).toBeUndefined();
+    expect(cleared['c@d.com']).toBeDefined();
+    expect(clearLoginAttempts({}, 'nobody@x.com')).toEqual({});
   });
 });

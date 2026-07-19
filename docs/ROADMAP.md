@@ -103,7 +103,21 @@ Goal: safe to point at from outside your own laptop.
       deferred: the Tailwind Play CDN injects runtime CSS, and removing
       that requires dropping the CDN approach (see the Vite-migration
       trigger below), which is out of scope for a header change.
-- [ ] **NFR3 — Login rate limiting / App Check.**
+- [x] **NFR3 — Login rate limiting / App Check.** (done 2026-07-12, code
+      complete on both layers, console setup still required) Added a
+      client-side lockout (5 failed attempts → 30s cooldown per email,
+      per browser — tested, but only deters manual retries) and wired up
+      Firebase App Check with a reCAPTCHA v3 provider, inert behind a
+      placeholder site key with a `console.warn` until configured. The
+      remaining 3 steps (register a reCAPTCHA v3 key, paste it in, flip
+      enforcement on per-product) require Firebase console access this
+      session doesn't have — documented as a walkthrough in `SETUP.md`
+      rather than left unstated. Also caught and fixed a CSP interaction
+      before it could bite: `frame-src` was unset (falling back to
+      `default-src 'self'`), which would have silently blocked
+      reCAPTCHA's iframe the moment someone enabled it — added
+      `https://www.google.com`/`https://www.recaptcha.net` to
+      `script-src`/`connect-src`/`frame-src` preemptively.
 - [x] **FR13 / NFR8 — Cascading delete.** (done 2026-07-12, common case)
       `deleteProject()` now deletes every photo doc + Storage object for
       the project's current task indices before deleting the project

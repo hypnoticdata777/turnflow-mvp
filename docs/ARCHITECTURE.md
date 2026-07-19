@@ -218,6 +218,14 @@ protection, not just a header for show:
   section). Extracting inline scripts doesn't touch this.
 - `connect-src`/`img-src` allow `https://*.googleapis.com` (Firestore,
   Auth, Storage all resolve under this) plus `data:` for `img-src`.
+- `script-src`/`connect-src`/`frame-src` also allow `https://www.google.com`
+  and `https://www.recaptcha.net` — added alongside the App Check work
+  below (2026-07-12) so that enabling reCAPTCHA v3 doesn't silently break
+  against this CSP the moment someone configures it. Without this, the
+  invisible reCAPTCHA iframe (governed by `frame-src`, which falls back to
+  `default-src 'self'` if unset — it was unset before this) and its
+  verification requests would have been blocked, and App Check would have
+  failed with no obvious connection to the CSP as the cause.
 - `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`,
   `form-action 'self'` are all fully enforced with no exceptions.
 
@@ -230,6 +238,46 @@ public/js/pages/{page}.js           Page-specific main logic
 public/js/pages/{page}.guard.js     Page-specific guard (single-role pages)
 public/js/pages/{page}.header.js    Page-specific custom header builder
 ```
+
+## Login security (NFR3)
+
+Two independent layers, added 2026-07-12 — neither is a substitute for
+the other:
+
+**1. Client-side login lockout** (`auth.js` + pure helpers in `utils.js`,
+always active, no configuration needed). After `LOGIN_LOCKOUT_THRESHOLD`
+(5) failed attempts for the same email, the login form refuses further
+attempts for `LOGIN_LOCKOUT_MS` (30s), tracked per-email in
+`localStorage` under `tf_login_attempts`. The lockout/attempt-counting
+logic itself is pure (`recordFailedLogin`, `getLockoutRemainingMs`,
+`clearLoginAttempts`) and unit tested; `auth.js` only wires it to actual
+`localStorage` reads/writes. **This is a UX deterrent, not real
+security** — it's trivially bypassed by clearing `localStorage`, using a
+different browser, or (the case that actually matters) not using the
+login form at all and calling Firebase Auth's REST API directly. Be
+honest with anyone reading this about what it does and doesn't stop.
+
+**2. Firebase App Check** (`firebase-config.js`, the real defense,
+**inert until configured**). Attaches a reCAPTCHA v3 token to every
+Auth/Firestore/Storage request; Firebase can reject requests that don't
+carry a valid one, which stops exactly the REST-API-abuse case the
+lockout above can't touch. The code checks whether
+`RECAPTCHA_V3_SITE_KEY` is still the placeholder string and no-ops with a
+`console.warn` if so — shipping this inert by default was deliberate,
+since a placeholder key passed to `initializeAppCheck()` would throw, not
+gracefully degrade. Three manual steps remain, and can only be done by
+whoever holds Firebase console access to this project (not something
+achievable from a coding session alone):
+1. Register a reCAPTCHA v3 provider for this web app in the console to
+   get a site key.
+2. Paste that key over the placeholder in `firebase-config.js`.
+3. Turn on enforcement per-product (Auth, Firestore, Storage) in the
+   console — a site key alone does nothing until enforcement is flipped
+   on separately for each product.
+
+Full walkthrough, including the local-dev debug-token step (`localhost`
+isn't a registered domain, so App Check rejects it by default once
+enforcement is on), is in `SETUP.md`.
 
 ## File map
 
@@ -261,7 +309,8 @@ public/js/
   utils.js                Pure helpers: escHtml, task status derivation, cost calc,
                           assignment labels, PROJECT_STATUSES/projectStatusBadgeClasses()
                           (FR7's shared source of truth, used by both dashboard.html's
-                          editable status dropdown and pending-approval.html's read-only badge)
+                          editable status dropdown and pending-approval.html's read-only badge),
+                          login-lockout logic (NFR3, wired to localStorage by auth.js)
   guard-pm-admin.js       Shared pm/admin page guard (CSP extraction, 2026-07-12)
   wire-logout.js          Shared #logoutBtn wiring (CSP extraction, 2026-07-12)
   pages/                  Page-specific logic extracted from inline <script> blocks

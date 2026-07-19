@@ -51,13 +51,45 @@ npm run test:watch  # watch mode
 ```
 
 Tests live in `public/js/__tests__/` and cover the dependency-free logic in
-`utils.js` (task status derivation, cost calculation, HTML escaping) —
-34 tests, no DOM or Firebase mocking required. See `ARCHITECTURE.md` for
-why the pure logic was extracted out of `script.js` to make this possible.
+`utils.js` (task status derivation, cost calculation, HTML escaping,
+login lockout) — 42 tests, no DOM or Firebase mocking required. See
+`ARCHITECTURE.md` for why the pure logic was extracted out of `script.js`
+to make this possible.
 
 CI (`.github/workflows/ci.yml`) runs the same `npm test` on every push and
 PR to `main`. There is currently **no browser/E2E test layer** and **no
 Firestore/Storage rules test layer** — see `ROADMAP.md` Phase 0 stretch goals.
+
+## Enable App Check (NFR3)
+
+Login gets two layers of abuse protection:
+
+1. **Client-side lockout** (`auth.js`, always on, no setup needed) — locks
+   the login form for 30s after 5 failed attempts for the same email, per
+   browser. This only slows down someone repeatedly clicking "Sign in" by
+   hand; it does nothing against a script calling Firebase Auth's REST API
+   directly.
+2. **Firebase App Check** (the real defense, off by default until you
+   configure it) — rejects Auth/Firestore/Storage requests that don't come
+   with a valid token from this app. The code is already wired up in
+   `firebase-config.js` and stays inert (with a console warning) until you
+   complete these steps:
+   1. Firebase console → **App Check** → register this web app, choosing
+      **reCAPTCHA v3** as the provider. This gives you a site key.
+   2. Open `public/js/firebase-config.js` and replace
+      `RECAPTCHA_V3_SITE_KEY = 'REPLACE_WITH_RECAPTCHA_V3_SITE_KEY'` with
+      the real key.
+   3. Firebase console → **App Check** → **APIs** tab → set enforcement to
+      **Enforced** for Authentication, Cloud Firestore, and Cloud Storage.
+      Enforcement is a separate toggle per product — having a site key
+      configured does nothing on its own until you flip these.
+   4. **Local development:** `localhost` isn't a registered domain, so
+      App Check will reject requests from it once enforcement is on.
+      Uncomment the `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;` line in
+      `firebase-config.js`, open the browser console, copy the debug
+      token it logs, and register it under App Check → **Manage debug
+      tokens** in the Firebase console. Never leave that line uncommented
+      in a deployed environment.
 
 ## Deploy
 

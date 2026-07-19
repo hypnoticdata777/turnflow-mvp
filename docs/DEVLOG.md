@@ -7,6 +7,44 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-12 — Phase 2: login security, both layers (NFR3)
+
+- **Added — client-side lockout (always on):** `auth.js`'s login form now
+  locks out an email for 30s after 5 failed attempts, tracked per-email
+  in `localStorage`. The counting/lockout logic itself
+  (`recordFailedLogin`, `getLockoutRemainingMs`, `clearLoginAttempts`,
+  `normalizeEmailKey`) is pure and lives in `utils.js` — `auth.js` only
+  wires it to real `localStorage` reads/writes. 8 new tests, 42 total
+  passing. **Honest framing, not oversold:** this deters someone
+  manually retrying the login form; it does nothing against a script
+  calling Firebase Auth's REST API directly.
+- **Added — Firebase App Check (the real defense, currently inert):**
+  wired up `initializeAppCheck()` with a `ReCaptchaV3Provider` in
+  `firebase-config.js`, gated behind a placeholder site-key check so it
+  no-ops with a `console.warn` instead of throwing until someone
+  actually configures it. Three steps remain and are Firebase-console
+  work only the project owner can do — registering a reCAPTCHA v3 key,
+  pasting it in, and flipping enforcement on per-product (Auth,
+  Firestore, Storage all separately). Documented as a numbered
+  walkthrough in `SETUP.md`, including the local-dev debug-token step
+  (a commented-out `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;` line is
+  already in the file, ready to uncomment).
+- **Caught a real integration bug before it could bite:** reCAPTCHA v3
+  needs to load a script and open an iframe from `www.google.com`
+  (`www.recaptcha.net` as a fallback), and make verification requests to
+  the same domain. None of that was allowlisted in the CSP added earlier
+  today (NFR2) — worse, `frame-src` was never set at all, which falls
+  back to `default-src 'self'` and would have silently blocked
+  reCAPTCHA's iframe. Had this shipped as-is, the moment someone
+  completed the three console steps above, App Check would have started
+  failing with no obvious link back to "the CSP from this morning" as
+  the cause. Added `https://www.google.com`/`https://www.recaptcha.net`
+  to `script-src`, `connect-src`, and a newly-added `frame-src` directive.
+- Verified: `node --check` on every touched file, full `npm test`
+  (42/42), `firebase.json` JSON validity.
+
+---
+
 ### 2026-07-12 — Phase 2: cascading delete for task photos (FR13/NFR8)
 
 - **Added:** `deleteProject()` in `firestore-projects.js` now walks every
