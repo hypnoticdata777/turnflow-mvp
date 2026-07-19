@@ -136,10 +136,26 @@ Goal: safe to point at from outside your own laptop.
       no longer correspond to an array index. Full fix needs the
       task-identity migration noted in `ARCHITECTURE.md` (embedded array
       → real subcollection with stable IDs).
-- [ ] **NFR5 — Pagination.** Replace `getAllProjects()`'s full-collection
-      fetch with cursor-based pages (`startAfter`) on the dashboard, and
-      stop `stats.html` from pulling the entire collection client-side.
-      Do this before demoing with realistic data volumes, not after.
+- [x] **NFR5 — Pagination.** (done 2026-07-12, dashboard only) Added
+      `getProjectsPage()` (cursor-based, `orderBy('createdAt','desc')` +
+      `limit` + `startAfter`) and switched `dashboard.html` to it — 20
+      projects per page, "Load More" button, no composite index needed.
+      `stats.html` was investigated for the same treatment via Firestore
+      aggregation queries (`count()`/`sum()`) but they don't fit the data
+      model as-is — `tasks` is an embedded array, not a subcollection, so
+      there's no per-task field for `sum()` to reach into. Real fix needs
+      denormalized summary fields synced on every task write, which is
+      disproportionate for a stats page outside the core workflow; left
+      as a full scan and noted for revisit alongside the task-identity
+      migration (same fix unlocks both). `backup.html` keeps
+      `getAllProjects()` on purpose — exporting everything is the point.
+
+**All 5 Phase 2 items have been addressed** — but "addressed" is not the
+same as "fully closed," and `REQUIREMENTS.md`'s status column is the
+honest record: NFR3 needs 3 Firebase-console steps only the project
+owner can do; FR13/NFR8 and NFR5 (stats) both have documented residual
+gaps tied to the same underlying task-identity modeling quirk; NFR1's
+photo-read scoping is still open. Moving to Phase 3.
 
 ---
 

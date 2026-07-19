@@ -13,6 +13,9 @@ import {
   getDoc,
   query,
   where,
+  orderBy,
+  limit,
+  startAfter,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import {
@@ -49,7 +52,10 @@ export async function createProject(projectData) {
 }
 
 /**
- * Get all projects from Firestore
+ * Get all projects from Firestore.
+ * Full-collection read — appropriate for backup.html's "export everything"
+ * use case, but NOT for routine page loads at scale. Use getProjectsPage()
+ * for the dashboard instead (see NFR5 in docs/REQUIREMENTS.md).
  * @returns {Promise<Array>} Array of projects with IDs
  */
 export async function getAllProjects() {
@@ -65,6 +71,39 @@ export async function getAllProjects() {
     return projects;
   } catch (error) {
     console.error("Error getting projects:", error);
+    throw error;
+  }
+}
+
+export const DEFAULT_PROJECTS_PAGE_SIZE = 20;
+
+/**
+ * Get one page of projects, newest first, for cursor-based pagination.
+ * Fetches pageSize+1 docs so `hasMore` can be determined without a
+ * separate count query; the extra doc is trimmed before returning.
+ * @param {Object} [options]
+ * @param {number} [options.pageSize] - Max projects to return.
+ * @param {*} [options.cursor] - The `lastDoc` from a previous page (pass
+ *   the whole QueryDocumentSnapshot, not just its id — Firestore's
+ *   startAfter() needs the snapshot to resume ordering from).
+ * @returns {Promise<{projects: Array, lastDoc: *, hasMore: boolean}>}
+ */
+export async function getProjectsPage({ pageSize = DEFAULT_PROJECTS_PAGE_SIZE, cursor = null } = {}) {
+  try {
+    const constraints = [orderBy('createdAt', 'desc'), limit(pageSize + 1)];
+    if (cursor) constraints.push(startAfter(cursor));
+
+    const q = query(projectsCollection, ...constraints);
+    const querySnapshot = await getDocs(q);
+
+    const docs = querySnapshot.docs.slice(0, pageSize);
+    const projects = docs.map((d) => ({ id: d.id, ...d.data() }));
+    const lastDoc = docs.length > 0 ? docs[docs.length - 1] : null;
+    const hasMore = querySnapshot.docs.length > pageSize;
+
+    return { projects, lastDoc, hasMore };
+  } catch (error) {
+    console.error("Error getting projects page:", error);
     throw error;
   }
 }
