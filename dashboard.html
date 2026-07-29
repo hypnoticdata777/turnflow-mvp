@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Project Dashboard</title>
+  <title>TurnFlow Home — My Requests</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="public/css/style.css" />
-  <script type="module" src="public/js/script.js"></script>
+  <script type="module" src="public/js/load-sidebar.js"></script>
 </head>
 
 <body class="bg-gray-100">
 
-  <script type="module" src="public/js/guard-pm-admin.js"></script>
+  <script type="module" src="public/js/guard-owner.js"></script>
 
   <div class="flex">
 
@@ -22,10 +22,12 @@
         <button id="logoutBtn" class="px-3 py-1 border rounded">Logout</button>
       </header>
 
-      <h1 class="text-3xl font-bold mb-6">📋 Project Dashboard</h1>
-      <div id="projectList" class="space-y-4"></div>
+      <h1 class="text-3xl font-bold mb-6">🏠 My Maintenance Requests</h1>
+      <div id="requestList" class="space-y-4">
+        <p class="text-gray-500">Loading…</p>
+      </div>
       <div class="mt-4 text-center">
-        <button id="loadMoreBtn" class="hidden bg-gray-700 text-white px-4 py-2 rounded">Load More Projects</button>
+        <button id="loadMoreBtn" class="hidden bg-gray-700 text-white px-4 py-2 rounded">Load More</button>
       </div>
     </main>
   </div>

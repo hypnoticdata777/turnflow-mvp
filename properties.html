@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Properties - TurnFlow Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script type="module" src="public/js/load-sidebar.js"></script>
+  <script type="module" src="public/js/guard-owner.js"></script>
+</head>
+
+<body class="bg-gray-100">
+
+  <div class="flex">
+
+    <div id="sidebar-container"></div>
+
+    <div class="flex-1 p-6">
+      <header class="flex justify-end mb-4">
+        <button id="logoutBtn" class="px-3 py-1 border rounded">Logout</button>
+      </header>
+
+      <h1 class="text-3xl font-bold mb-6">🏘️ Properties</h1>
+
+      <div class="bg-white p-4 rounded-xl shadow mb-6">
+        <h2 class="text-xl font-semibold mb-4">Add a Property</h2>
+        <p id="formError" class="text-red-500 text-sm mb-2 hidden"></p>
+        <form id="property-form" class="space-y-3" novalidate>
+          <input id="propertyAddress" type="text" placeholder="Address" class="w-full p-2 border rounded" required>
+          <input id="propertyUnit" type="text" placeholder="Unit (optional)" class="w-full p-2 border rounded">
+          <input id="propertyNickname" type="text" placeholder="Nickname (optional, e.g. \"The rental\")" class="w-full p-2 border rounded">
+          <button class="bg-green-600 text-white px-4 py-2 rounded" type="submit" id="submitBtn">Add Property</button>
+        </form>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl shadow">
+        <h2 class="text-xl font-semibold mb-4">Your Properties</h2>
+        <div id="propertyList" class="space-y-3">
+          <p class="text-gray-500">Loading properties…</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="public/js/pages/properties.js"></script>
+
+  <script type="module" src="public/js/firebase-config.js"></script>
+  <script type="module" src="public/js/auth.js"></script>
+  <script type="module" src="public/js/wire-logout.js"></script>
+</body>
+</html>

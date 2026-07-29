@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request Detail - TurnFlow Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <script type="module" src="public/js/load-sidebar.js"></script>
+  <script type="module" src="public/js/guard-owner.js"></script>
+</head>
+
+<body class="bg-gray-100">
+
+  <div class="flex">
+
+    <div id="sidebar-container"></div>
+
+    <div class="flex-1 p-6">
+      <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+
+        <div id="requestInfo" class="mb-6 text-gray-700 space-y-1"></div>
+
+        <hr class="my-4">
+
+        <h2 class="text-xl font-semibold mb-2">Cost</h2>
+        <form id="costForm" class="grid grid-cols-3 gap-3 items-end mb-2">
+          <div>
+            <label class="block text-sm font-medium mb-1">Estimated</label>
+            <input id="estimatedCost" type="number" step="0.01" class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Quoted</label>
+            <input id="quotedCost" type="number" step="0.01" class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Final</label>
+            <input id="finalCost" type="number" step="0.01" class="w-full p-2 border rounded">
+          </div>
+          <div class="col-span-3">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">Save Cost</button>
+            <span id="costStatus" class="text-sm text-gray-500 ml-2"></span>
+          </div>
+        </form>
+        <p class="text-xs text-gray-500 mb-6">Costs remain estimates until a vendor quote, invoice, or final cost is entered here.</p>
+
+        <hr class="my-4">
+
+        <h2 class="text-xl font-semibold mb-3">Photos</h2>
+        <div class="grid md:grid-cols-4 gap-4 mb-3">
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">Before</h3>
+            <input id="beforeInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="before" class="uploadBtn bg-blue-600 text-white px-3 py-1 rounded">Upload</button>
+          </div>
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">After</h3>
+            <input id="afterInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="after" class="uploadBtn bg-green-600 text-white px-3 py-1 rounded">Upload</button>
+          </div>
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">Receipt</h3>
+            <input id="receiptInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="receipt" class="uploadBtn bg-yellow-600 text-white px-3 py-1 rounded">Upload</button>
+          </div>
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">Other</h3>
+            <input id="otherInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="other" class="uploadBtn bg-gray-600 text-white px-3 py-1 rounded">Upload</button>
+          </div>
+        </div>
+        <p id="uploadStatus" class="text-sm text-gray-600 mb-4"></p>
+        <div id="gallery" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+
+        <button id="downloadPdfBtn" class="bg-green-600 text-white px-4 py-2 rounded">
+          📄 Download PDF
+        </button>
+        <a href="dashboard.html" class="ml-3 bg-gray-600 text-white px-4 py-2 rounded">⬅ Back to Dashboard</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="public/js/pages/request.js"></script>
+</body>
+</html>

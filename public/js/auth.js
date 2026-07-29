@@ -23,7 +23,7 @@ function saveLoginAttempts(attempts) {
 }
 
 // --- Constants and Helpers ---
-const ROLES = { tech: "tech", pm: "pm", client: "client", admin: "admin" };
+const ROLES = { owner: "owner", vendor: "vendor", collaborator: "collaborator" };
 const isLoginPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/';
 
 function go(page) {
@@ -47,11 +47,10 @@ export async function getUserRole(uid) {
 
 export function roleHome(role) {
     switch (role) {
-        case ROLES.tech:    return "technician.html";
-        case ROLES.pm:      return "dashboard.html";
-        case ROLES.admin:   return "dashboard.html";
-        case ROLES.client:  return "pending-approval.html"; // Clients view project approval status
-        default:            return "dashboard.html";
+        case ROLES.owner:        return "dashboard.html";
+        case ROLES.vendor:       return "vendor.html";
+        case ROLES.collaborator: return "collaborator.html"; // Household collaborators view shared request status, read-only
+        default:                 return "dashboard.html";
     }
 }
 

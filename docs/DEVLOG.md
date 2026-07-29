@@ -7,6 +7,122 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-29 — v1.1 foundation pivot: domain model + role rewrite shipped
+
+- **Shipped `ROADMAP.md` v1.1 in full.** The codebase now runs on
+  TurnFlow Home's domain model instead of the pre-pivot property-turnover
+  one. This closed `BRL1` (✅), `BRL6` (✅), `SYS2` (✅), and `SYS7` (✅) in
+  `REQUIREMENTS.md`, and moved several others (`BR1`, `BR5`, `BRL3`,
+  `BRL4`, `BRL5`, `CON1`, `CON2`, `CON6`, `FEAT1`, `FEAT2`, `FEAT7`,
+  `FR1`✅, `FR2`, `FR3`, `FR4`, `FR5`, `FR6`✅, `QA1`, `QA2`, `SYS3`,
+  `SYS6`, `UR1`, `UR4`, `UR5`, `UR6`) from ⬜/🟡 toward 🟡/✅ — see that
+  file's per-row notes for exactly what shipped vs. what's still v1.2.
+- **`firestore.rules`/`storage.rules` rewritten.** New roles
+  (`owner`/`vendor`/`collaborator`, collapsing the old `pm`/`admin`/
+  `tech`/`client`), new collections (`properties`, `requests` replacing
+  `projects`). A `vendor` now reads only their `assignedVendorUid`
+  request and a `collaborator` only their `collaboratorUid` request —
+  enforced server-side in both Firestore and Storage — closing the
+  pre-pivot gap where any authenticated user of a role could read any
+  project/photo.
+- **New data layer:** `firestore-properties.js` (new) and
+  `firestore-requests.js` (replaces `firestore-projects.js`). Requests
+  are single-issue records (category/urgency/location/contactMethod/
+  accessInstructions/notes/status/three cost fields), not itemized
+  turnover jobs. Photos moved from a task-index-keyed subcollection to a
+  real-document-ID subcollection directly under a request — this
+  resolves the pre-pivot task-identity/cascading-delete quirk noted in
+  the old `ARCHITECTURE.md` as a side effect, not a separate fix.
+- **`utils.js` rewritten:** `REQUEST_STATUSES` (8-state lifecycle)
+  replaces `PROJECT_STATUSES` (4-state); `costForRequest()`/
+  `costLabelForRequest()` (new, implements `BRL3` — final beats quoted
+  beats estimated) replace `calculateEstimateTotal()`; `tf_getTaskStatus`/
+  `tf_statusLabel` removed (no per-task status now that a request has one
+  request-level status); `assignedVendorLabel`/`assignedCollaboratorLabel`
+  replace `assignedTechLabel`/`assignedClientLabel`.
+- **Every page rewritten or replaced:** `dashboard.html` (owner, now
+  request-centric), `new-request.html` (replaces `new-project.html`,
+  single-issue guided-ish form with an emergency disclaimer for `BRL4`),
+  `request.html` (replaces `estimate.html`, detail view with cost fields
+  + photo upload + PDF export), `vendor.html` (replaces
+  `technician.html`), `collaborator.html` (replaces
+  `pending-approval.html`), `properties.html` (new — `FR1`). Retired
+  `pending-send.html` — its Approved→Sent step doesn't exist in the new
+  8-state lifecycle; the dashboard's general status dropdown covers it.
+- **`backup.html` rewritten** to export/import properties + requests
+  together as one JSON file, with property-ID references correctly
+  remapped on restore instead of silently breaking.
+- **`stats.html` rewritten** to chart requests-by-status and cost-by-
+  property against the new schema.
+- **Test suite updated:** `public/js/__tests__/utils.test.js` rewritten
+  for the new exports — 36 tests, all passing (`npm test`).
+- **Verification method** (no live browser available in this session):
+  `node --check` on every JS file for syntax; a repo-wide grep for every
+  retired file name, collection name (`projects`, `assignedTechId`,
+  `clientId`), and role string (`pm`/`admin`/`tech`/`client`) to confirm
+  no stale references survived the rewrite; a script/href resolution
+  check confirming every `<script src>` and `href` across every HTML page
+  points at a file that actually exists; and an import-resolution check
+  confirming every relative `import` in every JS file resolves to a real
+  local file.
+- **Explicitly not done in this pass** (all tracked as v1.2 packages in
+  `ROADMAP.md`): guided next-step checklists, multi-quote comparison,
+  real email-based vendor/collaborator invites, an approval/decision log,
+  a property-level document vault distinct from request photos, recurring
+  maintenance reminders, any notification service, and formatted
+  PDF/CSV proof-packet export.
+- **Data migration:** none needed — confirmed with the project owner that
+  no production data existed yet, so the schema/role rewrite shipped
+  clean rather than via a migration script.
+
+---
+
+### 2026-07-29 — Product pivot: TurnFlow Home requirements adopted, documentation realigned
+
+- **Decision:** TurnFlow is pivoting from the pre-pivot property-turnover
+  management POC (PM/technician/client roles, turnover-job estimates) to
+  **TurnFlow Home** — a guided maintenance self-management product for
+  homeowners and owner clients. No code shipped in this entry; this is
+  the documentation and requirements realignment that precedes the v1.1
+  data-model/role rewrite.
+- **`docs/REQUIREMENTS.md` replaced** with the canonical 10-pillar
+  TurnFlow Home requirement set (Business Requirements, Business Rules,
+  Constraints, External Interfaces, Features, Functional, Nonfunctional,
+  Quality Attributes, System, User Requirements — `BR`/`BRL`/`CON`/`EXT`/
+  `FEAT`/`FR`/`NFR`/`QA`/`SYS`/`UR` IDs), each row carrying a gap-status
+  assessment against the current code. The legacy FR/NFR requirement set
+  that shaped the code through 2026-07-12 is preserved as Appendix A for
+  traceability — it's superseded, not deleted, since several of its items
+  (security rules, CSP, pagination, cascading delete) remain relevant
+  infrastructure.
+- **`docs/ROADMAP.md` rewritten** around a new version framing: v1.0
+  (current pre-pivot baseline) → v1.1 (foundation pivot: rename/reshape
+  the data model and roles, no new user-facing capability) → **v1.2 (the
+  MVP** — 12 packages, each mapped to the requirement IDs above, covering
+  every one of the 10 pillars at minimum viable depth) → v1.3–v1.5
+  (post-MVP hardening: SMS/push, maps, PWA, accessibility, env
+  separation) → v2.0 (vendor marketplace, payments, advisor roles,
+  portfolio scale — deferred per `CON4`). The pre-pivot Phase 0–4 plan is
+  kept as an appendix; Phases 0–2 shipped real, reusable infrastructure,
+  and Phases 3–4's remaining items were folded into the new v1.2/v1.3+
+  packages rather than completed as originally scoped.
+- **`docs/ARCHITECTURE.md`** gained a "Target domain model" section
+  (properties/requests/quotes/vendorInvites/decisionLog/documents/
+  recurringTasks/sharing collections, owner/vendor/collaborator roles) up
+  top, ahead of the existing current-state architecture, which is now
+  explicitly labeled "current, pre-pivot."
+- **`README.md`** repositioned around TurnFlow Home with a status banner
+  pointing readers to `REQUIREMENTS.md`/`ROADMAP.md` as the source of
+  truth, while keeping the existing feature/role/setup documentation for
+  the code as it runs today.
+- **`docs/WORKBOOK.md`** snapshot and reading-order updated to reflect the
+  pivot and point newcomers at `REQUIREMENTS.md` first.
+- **Not done in this pass:** no v1.1 code changes (the actual
+  `properties`/`requests` collections, role rename, or rule rewrite)
+  shipped yet — that's the next work, tracked in `ROADMAP.md` v1.1.
+
+---
+
 ### 2026-07-12 — Phase 2: dashboard pagination (NFR5) — Phase 2 addressed
 
 - **Added:** `getProjectsPage({ pageSize, cursor })` in

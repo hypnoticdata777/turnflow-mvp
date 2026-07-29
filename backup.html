@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Backup Projects</title>
+  <title>Backup - TurnFlow Home</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script type="module" src="public/js/script.js"></script>
+  <script type="module" src="public/js/load-sidebar.js"></script>
 </head>
 
 <body class="bg-gray-100">
 
-  <script type="module" src="public/js/guard-pm-admin.js"></script>
+  <script type="module" src="public/js/guard-owner.js"></script>
 
   <div class="flex">
 
@@ -18,8 +18,8 @@
 
     <div class="flex-1 p-6">
       <div class="max-w-lg mx-auto bg-white p-6 rounded-xl shadow">
-        <h1 class="text-2xl font-bold mb-2">Backup & Restore Projects</h1>
-        <p class="text-sm text-gray-500 mb-6">Exports and imports your live Firestore project data.</p>
+        <h1 class="text-2xl font-bold mb-2">Backup & Restore</h1>
+        <p class="text-sm text-gray-500 mb-6">Exports and imports your properties and maintenance requests, so you're never locked into this tool (CON6/NFR4 in docs/REQUIREMENTS.md).</p>
 
         <button id="backupBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-6 w-full">
           📥 Download Backup (JSON)
@@ -27,7 +27,7 @@
 
         <h2 class="text-xl font-semibold mb-2">Restore from Backup</h2>
         <p class="text-sm text-gray-500 mb-3">
-          Importing will <strong>add</strong> the projects from the file as new entries — existing projects are not overwritten.
+          Importing will <strong>add</strong> the properties and requests from the file as new entries, owned by whoever is currently signed in — existing records are not overwritten.
         </p>
         <input type="file" id="fileInput" class="mb-4 w-full" accept=".json" />
         <button id="restoreBtn" class="bg-green-600 text-white px-4 py-2 rounded w-full">

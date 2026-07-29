@@ -22,25 +22,36 @@ If you stand up your own Firebase project, replace the values there.
 
 ### Create test users
 
-1. In the Firebase console → Authentication, create a user per role you want to test (e.g. `pm@test.com`, `tech@test.com`).
+1. In the Firebase console → Authentication, create a user per role you want to test (e.g. `owner@test.com`, `vendor@test.com`, `collaborator@test.com`).
 2. In Firestore, create a doc at `users/{uid}` (uid from the Auth user) with:
-   - `role` — `pm`, `admin`, `tech`, or `client` (required)
-   - `email` and/or `name` — optional, but **required in practice for `tech` users** if you want the PM dashboard's technician-assignment dropdown to show something more useful than a raw uid. The client SDK cannot call Firebase Auth's `listUsers()` (that's admin-only), so there is no automatic way to sync the Auth email into this doc — you have to type it in by hand today. See `ARCHITECTURE.md` for the tradeoff.
+   - `role` — `owner`, `vendor`, or `collaborator` (required)
+   - `email` and/or `name` — optional, but **required in practice for `vendor`/`collaborator` users** if you want the owner dashboard's assignment/sharing dropdowns to show something more useful than a raw uid. The client SDK cannot call Firebase Auth's `listUsers()` (that's admin-only), so there is no automatic way to sync the Auth email into this doc — you have to type it in by hand today. See `ARCHITECTURE.md` for the tradeoff.
 3. Log in via `index.html` — you'll land on that role's home page (`roleHome()` in `auth.js`).
+4. As an `owner`, add at least one property via `properties.html` before creating a request — every request must belong to a property (`BRL1`).
 
-### Test the client portal
+### Test the vendor and collaborator views
 
-1. Create a `client`-role user as above (steps 1–2).
-2. Log in as a `pm`/`admin` user, go to `dashboard.html`, and on any project use the **Client Portal Access** dropdown to assign that client (writes `clientId` on the project).
-3. Log in as the client — `pending-approval.html` now shows only that project, read-only, with its status and task list.
+1. Create a `vendor`-role and a `collaborator`-role user as above.
+2. Log in as the `owner`, go to `dashboard.html`, and on any request use the
+   **Assigned Vendor** and **Shared With (Collaborator)** dropdowns (writes
+   `assignedVendorUid` / `collaboratorUid` on the request).
+3. Log in as the vendor — `vendor.html` now shows only that request, with
+   photo upload and a status dropdown.
+4. Log in as the collaborator — `collaborator.html` now shows only that
+   request, read-only.
 
-Firestore rules enforce this scoping server-side (`clientId == request.auth.uid`) — a client cannot read a project that hasn't been assigned to them, even by guessing/typing a project ID directly against the SDK.
+Firestore rules enforce this scoping server-side
+(`assignedVendorUid`/`collaboratorUid == request.auth.uid`) — neither can
+read a request that hasn't been explicitly assigned/shared with them, even
+by guessing/typing a request ID directly against the SDK. This is a
+schema-only assignment mechanism for v1.1; a real email-based invite flow
+is `ROADMAP.md` v1.2 Package 3 (vendor) / Package 10 (collaborator).
 
 ### Seed sample data
 
-`seed.html` creates one sample project assigned to whichever `tech` user is
-currently logged in. Log in as a tech user first, then open `seed.html`
-directly.
+`seed.html` creates one sample property + request owned by whichever
+`owner` user is currently logged in. Log in as an owner first, then open
+`seed.html` directly.
 
 ## Run the tests
 
@@ -51,10 +62,8 @@ npm run test:watch  # watch mode
 ```
 
 Tests live in `public/js/__tests__/` and cover the dependency-free logic in
-`utils.js` (task status derivation, cost calculation, HTML escaping,
-login lockout) — 42 tests, no DOM or Firebase mocking required. See
-`ARCHITECTURE.md` for why the pure logic was extracted out of `script.js`
-to make this possible.
+`utils.js` (request cost resolution, HTML escaping, login lockout) — 36
+tests, no DOM or Firebase mocking required.
 
 CI (`.github/workflows/ci.yml`) runs the same `npm test` on every push and
 PR to `main`. There is currently **no browser/E2E test layer** and **no
@@ -108,6 +117,8 @@ Phase 3 for environment separation.
 
 ## Backup / restore
 
-`backup.html` exports all `projects` docs to a dated JSON file and can
-re-import them into a fresh environment. Useful for moving data between a
-future dev/staging project and prod once environment separation lands.
+`backup.html` exports the signed-in owner's `properties` and `requests`
+docs to a dated JSON file and can re-import them into a fresh environment
+(propertyId references are remapped to the newly created property IDs on
+restore). Useful for moving data between a future dev/staging project and
+prod once environment separation lands.

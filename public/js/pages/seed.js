@@ -8,7 +8,7 @@ const who = document.getElementById('who');
 const u = currentUser();
 
 if (!u) {
-  who.innerHTML = '<b>Not signed in.</b> Open <a href="index.html">index.html</a>, sign in as the TECH account, then come back.';
+  who.innerHTML = '<b>Not signed in.</b> Open <a href="index.html">index.html</a>, sign in as the OWNER account, then come back.';
 } else {
   who.textContent = `Signed in as: ${u.email} (uid: ${u.uid})`;
 }
@@ -16,21 +16,34 @@ if (!u) {
 document.getElementById('seedBtn').addEventListener('click', async () => {
   if (!auth.currentUser) { out.textContent = 'Please sign in first.'; return; }
 
-  const payload = {
-    name:       document.getElementById('name').value.trim(),
-    address:    document.getElementById('address').value.trim(),
-    unit:       document.getElementById('unit').value.trim(),
-    ownerName:  document.getElementById('owner').value.trim(),
-    targetDate: document.getElementById('date').value.trim(),
-    assignedTechId: auth.currentUser.uid,  // assign to current TECH user
-    createdBy: auth.currentUser.uid,
-    createdAt: serverTimestamp(),
-    tasks: [{ id:'t1', title:'Replace toilet', status:'Pending' }]
-  };
+  const ownerUid = auth.currentUser.uid;
+  const address = document.getElementById('address').value.trim();
+  const unit = document.getElementById('unit').value.trim();
+  const nickname = document.getElementById('nickname').value.trim();
+  const title = document.getElementById('title').value.trim();
 
   try {
-    const docRef = await addDoc(collection(db, 'projects'), payload);
-    out.textContent = `Seeded OK. New doc id: ${docRef.id}\n\n${JSON.stringify(payload,null,2)}`;
+    const propertyRef = await addDoc(collection(db, 'properties'), {
+      ownerUid, address, unit, nickname, createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+
+    const requestPayload = {
+      ownerUid,
+      propertyId: propertyRef.id,
+      title,
+      category: 'Plumbing',
+      urgency: 'Medium',
+      location: 'Kitchen',
+      contactMethod: 'Email',
+      accessInstructions: '',
+      notes: 'Seeded sample request.',
+      status: 'Draft',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
+    const requestRef = await addDoc(collection(db, 'requests'), requestPayload);
+
+    out.textContent = `Seeded OK.\nProperty id: ${propertyRef.id}\nRequest id: ${requestRef.id}\n\n${JSON.stringify(requestPayload, null, 2)}`;
   } catch (e) {
     out.textContent = 'Error: ' + (e.message || e);
   }
