@@ -1,254 +1,300 @@
-# Roadmap
+# Roadmap — path to TurnFlow Home
 
-This roadmap closes the gaps tracked in `REQUIREMENTS.md`, in the order
-that gives the best "looks/feels complete" return per unit of effort for a
-POC, then lays out how to ramp up scaling once the POC needs to become a
-pilot or a real product.
+This roadmap closes the gaps tracked in the canonical
+[`REQUIREMENTS.md`](./REQUIREMENTS.md) (the 10-pillar TurnFlow Home
+requirement set), in the order that gets to a genuinely useful MVP fastest
+without building the wrong thing twice.
 
-Each phase lists the FR/NFR IDs it targets so `REQUIREMENTS.md` stays the
-single source of truth for status.
+Every package below references the requirement IDs it closes
+(`BR`/`BRL`/`CON`/`EXT`/`FEAT`/`FR`/`NFR`/`QA`/`SYS`/`UR`) so
+`REQUIREMENTS.md` stays the single source of truth for status — flip the
+status column there when a package ships, don't track status here.
 
----
+**Version framing:**
 
-## Phase 0 — Stabilize ✅ (done 2026-07-12)
-
-Goal: make the codebase trustworthy to build on top of.
-
-- [x] Fix `seed.html`'s broken import (`auth`/`db` were imported from
-      `auth.js`, which never re-exported them — dev seeding tool was dead). (NFR4)
-- [x] Extract pure logic (`tf_getTaskStatus`, `tf_statusLabel`,
-      `calculateEstimateTotal`, date helpers) out of `script.js` into
-      `utils.js` so it's unit-testable without a browser or Firebase. (NFR7)
-- [x] Add `package.json` + Vitest, 21 unit tests over the extracted logic. (NFR7)
-- [x] Add GitHub Actions CI running `npm test` on push/PR to `main`. (NFR4)
-
-**Stretch (not done, worth doing next if time allows):**
-- Firestore rules unit tests via `@firebase/rules-unit-testing` + the Firebase emulator — currently `firestore.rules` has zero automated verification, only manual console testing.
-- A smoke-test layer (Playwright) that logs in as each role and asserts it lands on the right home page — would have caught the `seed.html` issue faster and catches routing regressions.
+| Version | What it is |
+|---|---|
+| v1.0 | Current shipped state — a role-based **property-turnover** tool (PM/technician/client). Pre-pivot baseline. |
+| v1.1 | **Foundation pivot.** Rename the domain model and roles so the app honestly speaks "homeowner maintenance," with zero new user-facing capability yet. Prerequisite for everything below. |
+| **v1.2** | **The MVP.** First version that credibly embodies all 10 requirement pillars at minimum useful depth. This is the release the "10 requirements" brief describes. |
+| v1.3–v1.5 | Near-term hardening and expansion once real users are on v1.2 — SMS/push, maps, PWA packaging, accessibility audit, environment separation. |
+| v2.0 | Vendor marketplace + payments + advisor roles + portfolio scale — explicitly deferred by `CON4`, built only once v1.2's core loop is validated. |
 
 ---
 
-## Phase 1 — Close the persona gap (target: 1–2 weeks)
+## v1.1 — Foundation pivot (target: ~1–2 weeks)
 
-Goal: all three roles named in the README actually work end-to-end. Right
-now "client" is a stub, which is the single most visible gap in any demo.
+Goal: make the *domain model and language* match the product before adding
+homeowner-facing features on top of the wrong nouns. No new user value
+ships in this version — it's entirely a rename/restructure, done once so
+v1.2 isn't built on a data model borrowed from a different business.
 
-- [x] **FR5 — Technician assignment UI.** (done 2026-07-12) Dropdown on
-      the PM dashboard, populated from `users` where `role == 'tech'` via
-      new `firestore-users.js`, writes `assignedTechId` via
-      `updateProject()`. Removes the last "edit Firestore by hand" step
-      for this flow. Required loosening the `users/{userId}` read rule to
-      let PM/Admin read any user doc (previously own-doc-only), and
-      surfaced that `dashboard.html`/`backup.html`/`contacts.html`/
-      `pending-send.html` had no page-level role guard at all — fixed as
-      part of the same change (NFR1).
-- [x] **FR6 — Real client portal.** (done 2026-07-12) `pending-approval.html`
-      rebuilt as the `client` role's home page: read-only cards scoped to
-      `getProjectsForClient(uid)`, matching a new `clientId` field on
-      `projects`. PM assigns portal access from a new dropdown on
-      `dashboard.html` (reused the FR5 pattern/helpers). `firestore.rules`
-      now restricts `projects` reads for the `client` role to
-      `resource.data.clientId == request.auth.uid`; PM/Admin/Tech reads are
-      unchanged. The stale "Pending Approval" nav link was removed from the
-      shared PM sidebar since the destination is now client-only.
-- [x] **FR7 — Status lifecycle UI.** (done 2026-07-12) PM dashboard got a
-      status dropdown per project (free transition between all 4 statuses,
-      not a strict state machine — correcting a mistake shouldn't require
-      a console edit). `pending-send.html` also got a dedicated "Mark as
-      Sent" button, since that page's entire purpose is the
-      Approved → Sent step. Added `PROJECT_STATUSES` and
-      `projectStatusBadgeClasses()` to `utils.js` as the shared,
-      unit-tested source of truth for valid statuses and their badge
-      styling — reused by both the dashboard and the client portal so the
-      two views can't drift out of sync on what a status looks like.
+- [ ] **`Property` becomes a first-class entity.** New `properties/{propertyId}`
+      collection (address, nickname, ownerUid, createdAt). A request always
+      references a property; a property can have many requests. Closes
+      `FR1`, and is the prerequisite for `BRL1`.
+- [ ] **`projects` → `requests`, reshaped.** Rename the collection and drop
+      the itemized-labor-estimate shape (`tasks: [{hours, rate, material}]`)
+      in favor of a single-issue-per-request shape: category, urgency,
+      room/location, photos, notes, access instructions, preferred contact
+      method, status. This is the schema `FR2`/`FEAT1` get built on in v1.2.
+- [ ] **Role remap.** `pm`/`admin` → `owner` (account owner/homeowner);
+      `tech` → `vendor`, moved from per-project assignment to per-request
+      invite; `client` → `collaborator` (household member), moved from
+      `clientId`-on-project to explicit property/request-level sharing.
+      Closes `SYS2`. Update `firestore.rules`/`storage.rules` and every
+      page guard (`requireRole`/`requireAnyRole`) to the new role names —
+      this is a mechanical but repo-wide change (see `ARCHITECTURE.md`'s
+      file map for every guard call site).
+- [ ] **Close the vendor read-scoping gap while touching roles anyway.**
+      Legacy `NFR1`/current `BRL6`: a `tech`/`vendor` can currently read
+      any project via `firestore.rules`, not just assigned ones. Scope
+      vendor reads to their invited requests as part of this rewrite,
+      since the rules file is being rewritten for the role rename regardless
+      — doing it separately later means touching the same file twice.
+- [ ] **Copy pass.** Every page, button label, and email-adjacent string
+      that says "project," "technician," "PM," or "client" gets renamed to
+      "request," "vendor," "owner," "collaborator." Partial credit for
+      `CON2`/`QA1`, fully closed in v1.2's dedicated copy work.
+- [ ] **Decide on data migration vs. fresh start.** If there's no real
+      production data yet (single-user POC), the cheapest path is to wipe
+      and reseed rather than write a migration script. Confirm this before
+      starting — it changes the shape of this phase materially.
 
-**Phase 1 is now complete** (FR5, FR6, FR7 all ✅). Moving to Phase 2.
-
-Resolve the task-identity quirk noted in `ARCHITECTURE.md` (tasks as an
-embedded array vs. photos keyed by array-index-as-string) *before* or
-*during* this phase — FR7's status transitions and Phase 2's cascading
-delete both get harder to reason about if task identity stays ambiguous.
-
----
-
-## Phase 2 — Harden (target: 1–2 weeks)
-
-Goal: safe to point at from outside your own laptop.
-
-- [x] **NFR1 — Storage rules.** (done 2026-07-12) Added `storage.rules`,
-      wired into `firebase.json`'s new `"storage"` block. Read requires
-      auth; write requires `tech` role + a matching uid on the upload
-      path (checked via `firestore.get()` cross-service lookup into
-      `users/{uid}.role`, so it can't drift from the Firestore role
-      model); delete is `admin`-only; everything outside `turnflow/...`
-      is denied by default. **Not yet closed:** the read side (both here
-      and in the parallel Firestore photos-subcollection rule) still
-      isn't `clientId`-scoped — tracked as a residual NFR1 item, to fix
-      in one pass across both rule files so they don't disagree.
-- [x] **NFR2 — CSP headers.** (done 2026-07-12, fully closed on the
-      script side) First pass added the header with `'unsafe-inline'`
-      kept on `script-src`/`style-src` since every page had inline
-      `<script type="module">` blocks. Revisited same-day: extracted all
-      ~25 inline blocks across 12 HTML pages into external files
-      (`public/js/guard-pm-admin.js`, `wire-logout.js`,
-      `public/js/pages/*`), fixed `estimate.html`'s one inline `onclick`
-      attribute (also governed by `script-src`), then dropped
-      `'unsafe-inline'` from `script-src` entirely. Verified without a
-      live browser via byte-for-byte diff of every extracted file
-      against the original inline content plus `node --check` on every
-      new file — see `DEVLOG.md`. Found and fixed a real bug along the
-      way: `new-project.html`'s hand-rolled guard had the exact auth
-      race condition `requireRole`/`requireAnyRole` were built to fix.
-      `style-src` still needs `'unsafe-inline'` — architectural, not
-      deferred: the Tailwind Play CDN injects runtime CSS, and removing
-      that requires dropping the CDN approach (see the Vite-migration
-      trigger below), which is out of scope for a header change.
-- [x] **NFR3 — Login rate limiting / App Check.** (done 2026-07-12, code
-      complete on both layers, console setup still required) Added a
-      client-side lockout (5 failed attempts → 30s cooldown per email,
-      per browser — tested, but only deters manual retries) and wired up
-      Firebase App Check with a reCAPTCHA v3 provider, inert behind a
-      placeholder site key with a `console.warn` until configured. The
-      remaining 3 steps (register a reCAPTCHA v3 key, paste it in, flip
-      enforcement on per-product) require Firebase console access this
-      session doesn't have — documented as a walkthrough in `SETUP.md`
-      rather than left unstated. Also caught and fixed a CSP interaction
-      before it could bite: `frame-src` was unset (falling back to
-      `default-src 'self'`), which would have silently blocked
-      reCAPTCHA's iframe the moment someone enabled it — added
-      `https://www.google.com`/`https://www.recaptcha.net` to
-      `script-src`/`connect-src`/`frame-src` preemptively.
-- [x] **FR13 / NFR8 — Cascading delete.** (done 2026-07-12, common case)
-      `deleteProject()` now deletes every photo doc + Storage object for
-      the project's current task indices before deleting the project
-      itself — a client-side batched delete, chosen over a Cloud
-      Function to stay serverless (no Blaze plan / functions pipeline in
-      this repo yet — see "When to introduce a backend" below). Required
-      loosening the photos-delete rule in both `firestore.rules` and
-      `storage.rules` from `admin`-only to `pm`/`admin`, matching the
-      project-level delete permission a plain `pm` already has. Also
-      added a `confirm()` prompt on the dashboard's delete button, since
-      the cascade makes delete meaningfully more destructive than before
-      and there wasn't one previously. **Known residual gap:** if a
-      project's task list ever shrank via editing, photos uploaded to a
-      since-removed task (now beyond the current `tasks.length`) aren't
-      caught — the client SDK can't enumerate subcollection paths that
-      no longer correspond to an array index. Full fix needs the
-      task-identity migration noted in `ARCHITECTURE.md` (embedded array
-      → real subcollection with stable IDs).
-- [x] **NFR5 — Pagination.** (done 2026-07-12, dashboard only) Added
-      `getProjectsPage()` (cursor-based, `orderBy('createdAt','desc')` +
-      `limit` + `startAfter`) and switched `dashboard.html` to it — 20
-      projects per page, "Load More" button, no composite index needed.
-      `stats.html` was investigated for the same treatment via Firestore
-      aggregation queries (`count()`/`sum()`) but they don't fit the data
-      model as-is — `tasks` is an embedded array, not a subcollection, so
-      there's no per-task field for `sum()` to reach into. Real fix needs
-      denormalized summary fields synced on every task write, which is
-      disproportionate for a stats page outside the core workflow; left
-      as a full scan and noted for revisit alongside the task-identity
-      migration (same fix unlocks both). `backup.html` keeps
-      `getAllProjects()` on purpose — exporting everything is the point.
-
-**All 5 Phase 2 items have been addressed** — but "addressed" is not the
-same as "fully closed," and `REQUIREMENTS.md`'s status column is the
-honest record: NFR3 needs 3 Firebase-console steps only the project
-owner can do; FR13/NFR8 and NFR5 (stats) both have documented residual
-gaps tied to the same underlying task-identity modeling quirk; NFR1's
-photo-read scoping is still open. Moving to Phase 3.
+**Exit criteria:** every collection, role, and page in the app uses
+TurnFlow Home's nouns. No homeowner-facing feature work has started yet —
+that's v1.2.
 
 ---
 
-## Phase 3 — Polish for external eyes (target: ~1 week)
+## v1.2 — MVP (target: ~6–8 weeks across the packages below)
 
-Goal: doesn't look like a POC anymore.
+Goal: a homeowner can go end-to-end — document an issue, get guided
+next steps, invite a vendor, collect and compare quotes, approve one,
+track it to done, and export proof of it — with every requirement pillar
+touched at least at a minimum viable depth. Packages are ordered so each
+one is either a prerequisite for the next or delivers standalone value if
+priorities shift mid-build; they don't have to ship as one release.
 
-- [ ] **FR9 — PDF quality.** Swap plain-text jsPDF output for the
-      `autotable` plugin — matters disproportionately for a client-facing
-      estimate.
-- [ ] **NFR9 — Error/loading UX.** Replace `alert()`-based error handling
-      with inline banners/toasts and visible loading states.
-- [ ] **NFR6 — Environment separation.** Second Firebase project for
-      dev/staging; `firebase-config.js` picks config by environment
-      instead of one hardcoded prod project. Lets you demo/break things
-      without touching real data.
+### Package 1 — Guided intake (`FEAT1`, `FR2`, `FR3`, `BRL4`, `CON1`, `UR1`, `UR2`)
+Replace the turnover-job builder with a single-issue guided form: category
+(plumbing/electrical/HVAC/appliance/roof/structural/pest/other), urgency,
+room/location, photos, notes, preferred contact method, access
+instructions. Ship a static category → next-step checklist + recommended
+evidence list (no ML needed — a lookup table is sufficient for MVP and
+directly testable). Add the "not an emergency dispatch service" disclaimer
+wherever urgency is marked high/emergency (`BRL4`/`CON1`).
+
+### Package 2 — Status lifecycle & dashboard (`FR6`, `FEAT2`)
+Implement the 8-state lifecycle (Draft, Needs Quote, Waiting, Scheduled,
+In Progress, Needs Review, Complete, Archived) as the shared source of
+truth, replacing the legacy 4-state one. Rebuild the dashboard around it
+with filtered views (open / scheduled / waiting / approved / completed) —
+reuse the pagination work from legacy `NFR5` (`getProjectsPage()`-style
+cursor queries), just re-pointed at `requests`.
+
+### Package 3 — Vendor invite & scoped package (`BRL6`, `FR4`, `SYS7`, `UR5`)
+Real invite flow: owner enters a vendor email, system creates a scoped
+invite (magic link or invite code + account creation) granting that
+vendor read access to exactly one request's package — photos, notes,
+access instructions, contact rules — and nothing else. Enforced in
+`firestore.rules`, not just hidden in the UI (this is where `BRL6`
+actually gets closed, not just documented as a gap).
+
+### Package 4 — Quote workspace (`FEAT3`, `FR5`, `BRL3`, `BR4`, `UR3`)
+Per-request quote records: vendor, amount, attachment (PDF/photo of the
+quote), notes, status (pending/selected/declined). Side-by-side comparison
+view when a request has 2+ quotes. Separate `estimatedCost` /
+`quotedCost` / `finalCost` fields so "estimate" vs. "actual" is never
+ambiguous (`BRL3`). Approving a quote records who approved it and when
+(feeds Package 5).
+
+### Package 5 — Approval & decision log (`FEAT6`, `QA3`, `BRL2`, `BRL7`, `QA4`)
+An append-only log entry generated automatically on every status
+transition, quote approval, and completion — actor, timestamp, what
+changed, what evidence backed it. This is also where completion gating
+lives: a request can't move to `Complete` unless required proof fields
+(final cost, at least one after-photo, vendor on record) are present, or
+the owner explicitly checks a "waive proof requirement" box with a reason
+recorded in the log (`BRL2`). Consider soft-delete/archive instead of hard
+delete here too, since the log makes "what got deleted and when" worth
+preserving (`QA4`).
+
+### Package 6 — Property record vault (`FEAT5`, `EXT4`, `SYS4`)
+Generalize Storage beyond per-task photos: a property-level document
+store for receipts, warranties, manuals, invoices, and inspection
+reports, independent of any single request. Tag documents by property and
+optionally by request. Reuses the existing Storage security-rule pattern
+(role + uid path checks), extended to the new path shape.
+
+### Package 7 — Proof packet & history export (`FEAT7`, `FR7`, `EXT5`, `NFR4`, `QA6`, `CON6`, `UR6`)
+Real PDF export via `jsPDF-autotable` (closes the legacy plain-text gap
+too): a formatted proof packet for one request (photos, quotes, approval
+log, final cost) or a full property history rollup. Add CSV export
+alongside the existing JSON backup so `NFR4`/`CON6` ("common formats,"
+"not locked in") are fully met, not just JSON.
+
+### Package 8 — Maintenance calendar & recurring reminders (`FEAT4`, `FR8`, `EXT3`)
+Recurring maintenance definitions (HVAC filter, gutter cleaning, water
+heater flush, etc.) per property with a configurable interval, generating
+upcoming/overdue reminder entries. ICS export for the calendar (`EXT3`) —
+a static `.ics` file generation is enough for MVP, no third-party calendar
+API integration needed.
+
+### Package 9 — Email notifications (`EXT1`, `FR8`, `SYS5`, `NFR6`)
+New infrastructure: a Cloud Function (or equivalent) triggered on request
+updates, upcoming/overdue reminders (Package 8), and vendor invitations
+(Package 3), sending via an email provider (e.g. a transactional email
+API). Log every send attempt with delivery status from day one (`NFR6`) —
+retrofitting observability onto a notification system later is far more
+painful than building the log table alongside the first sender.
+
+### Package 10 — Household collaborator sharing (`BRL5`, `SYS7`, `UR4`, `QA2`)
+Explicit sharing UI: an owner shares a property (or specific request)
+with a household collaborator by email, scoped server-side the same way
+Package 3 scopes vendors. Makes the existing rule *pattern* (per-entity
+scoping) visible and controllable to the end user, not just enforced
+silently (`QA2`).
+
+### Package 11 — Mobile pass & baseline accessibility (`CON5`, `NFR2`, `QA5`)
+Phone-width verification pass on every flow that touches photo capture or
+form entry (intake, quote upload, vault upload). Keyboard-navigation and
+contrast check on the core request/review/approve flows. Doesn't need to
+be a full WCAG audit yet (that's v1.3+) — just no broken flows at common
+phone widths and no keyboard traps.
+
+### Package 12 — Consumer copy & onboarding pass (`CON2`, `QA1`)
+Full pass over every label, empty state, and error message with a
+homeowner (not operations-team) audience in mind. Low-friction
+onboarding: fewer required fields to create a first property + first
+request than the legacy flow required to create a turnover project.
+
+**v1.2 exit criteria:** all six `UR` user stories in `REQUIREMENTS.md` are
+walkable end-to-end by a real homeowner account, and every `BR`/`FEAT`/`FR`
+row is at least 🟡 with a documented path to ✅, not ⬜.
 
 ---
 
-## Phase 4 — POC → pilot readiness (ongoing)
+## v1.3–v1.5 — Post-MVP hardening & expansion
 
-- [ ] **NFR10 — Deploy pipeline.** CI step that deploys `firestore:rules`
-      + `hosting` on merge to `main` (currently manual `firebase deploy`).
-- [ ] Basic usage analytics (who's logging in, which role, how often) —
-      useful pilot-readiness signal before deciding what to build next.
-- [ ] Revisit the "no build step" decision (see below) once the client
-      portal + assignment flow add real interaction complexity.
+Not sequenced into strict phases — pull from this list based on what
+actual v1.2 users hit first.
+
+- **SMS / push notifications** (`EXT2`) — opt-in, additive on top of
+  Package 9's notification service and delivery log.
+- **Maps / address validation** (`EXT6`) for property setup.
+- **PWA packaging** (`SYS1`) — manifest + service worker, installable,
+  basic offline shell for viewing (not creating) requests.
+- **Accessibility audit to WCAG AA** (`QA5`) on core flows, beyond
+  Package 11's baseline pass.
+- **Documented backup/restore runbook** (`NFR5`) — not just that export
+  exists, but a written "how to actually restore from it" procedure.
+- **Environment separation** (dev/staging/prod Firebase projects) — this
+  was already tracked pre-pivot (legacy `NFR6`) and is still the right
+  next step once the team isn't the only user.
+- **Vite migration / drop the Tailwind Play CDN** — unlocks a fully closed
+  CSP (`style-src` still needs `'unsafe-inline'` today, see
+  `ARCHITECTURE.md`) and real dependency pinning for Firebase/Chart.js/
+  jsPDF instead of CDN `<script>` tags.
+- **Firestore rules unit tests** (`@firebase/rules-unit-testing` +
+  emulator) and a Playwright smoke-test layer per role — both were
+  identified as valuable pre-pivot and remain valuable now that there are
+  more roles and more rule surface area to regress.
 
 ---
 
-## Scaling path — how to ramp this up beyond POC
+## v2.0 — Vendor marketplace, payments, and scale (future)
 
-The POC's biggest strength (small surface area, zero build tooling, direct
-CDN imports) is exactly what will need to change first if usage grows.
-Don't do any of this preemptively — each item below has a **trigger
-condition**; build it when you hit the trigger, not before.
+Explicitly deferred by `CON4` — do not pull items from this list into
+v1.2 even if they look tempting mid-build. Build only once the v1.2 core
+loop has real usage data behind it.
 
-### 1. Frontend: vanilla JS → lightweight framework
-- **Trigger:** once Phase 1's client portal + technician assignment UI are
-  in, you'll have real cross-page state (selected project, role-scoped
-  views, live status updates) that `sessionStorage` + `window.fn = ...`
-  globals will start to strain under.
-- **Path:** don't jump to a heavy SPA framework. A build tool (Vite) plus
-  either continued vanilla JS or a light reactive layer (Preact/Alpine) is
-  enough. Vite also solves the "no lockfile for CDN-loaded libs" problem
-  for Firebase SDK, Chart.js, jsPDF, Tailwind — all become real `npm`
-  dependencies with pinned versions.
+- **Vendor marketplace** — browse/request quotes from a directory of
+  vendors, instead of only inviting a vendor the homeowner already knows.
+- **Payments** (`EXT7`) — quote deposits, final invoice tracking,
+  potentially in-app payment collection.
+- **Advisor role** — a third collaborator tier beyond household members
+  (realtor, inspector, financial advisor) with its own scoping rules,
+  hinted at in `BR5`'s "optional advisors."
+- **Portfolio view / light multi-tenancy** — if TurnFlow Home ever needs
+  to serve a power user with many properties, or a small property-manager
+  business rather than a single household, this is where an `orgId`-style
+  tenant boundary gets introduced (same trigger logic as the pre-pivot
+  scaling notes below).
+- **Insurance/warranty integrations and resale-packet templates** — richer
+  proof-packet formats tailored to specific downstream consumers (an
+  insurer's claim format, a specific MLS resale-disclosure format).
 
-### 2. Backend: add Cloud Functions when client-side logic starts making trust assumptions
-- **Trigger:** cascading deletes (Phase 2), PDF generation that shouldn't
-  be spoofable from the client, or any "send notification" feature
-  (email/SMS on status change) — these all either need privileged access
-  Firestore rules can't express, or need to run somewhere the client can't
-  tamper with.
-- **Path:** Firebase Cloud Functions is the natural next step since you're
-  already all-in on Firebase; no need to stand up a separate backend
-  service for this stage.
+---
 
-### 3. Data: Firestore scaling limits
-- **Trigger:** `getAllProjects()`-style full scans (Phase 2 fixes the
-  worst of this) and the embedded-tasks-array model (`ARCHITECTURE.md`)
-  both get expensive as project/task counts grow — Firestore document
-  writes are limited to 1MiB and a large `tasks` array increases
-  read/write cost on every update.
-- **Path:** once a single project regularly has dozens of tasks, promote
-  `tasks` from an embedded array to a `projects/{id}/tasks/{taskId}`
-  subcollection with real document IDs. This also directly resolves the
-  task-identity quirk and makes FR13's cascading delete a straightforward
-  subcollection delete instead of an array-splice-then-orphan problem.
+## Scaling triggers (carried forward from pre-pivot, still apply)
 
-### 4. Multi-environment & multi-tenant
-- **Trigger:** Phase 3's environment separation (dev/staging/prod) is the
-  first step. If TurnFlow ever serves more than one property-management
-  company, the next trigger is genuine multi-tenancy: every collection
-  needs an `orgId`/`tenantId` field and every security rule needs to check
-  it, not just role.
-- **Path:** design the `orgId` field in *before* you have a second real
-  customer, even if it's a POC — retrofitting a tenant boundary into
-  Firestore rules and every query after the fact is much more error-prone
-  than adding it as an unused-but-present field now.
+These aren't versioned phases — they're conditions to watch for,
+regardless of which version is current. Don't build any of these
+preemptively.
 
-### 5. Observability
-- **Trigger:** the moment this is used by someone other than you day to
-  day — right now failures are only visible via `console.error` in a
-  browser devtools tab nobody else has open.
-- **Path:** Firebase Crashlytics/Performance Monitoring, or even just a
-  Cloud Function that forwards `console.error`-worthy failures somewhere
-  you'll see them (Slack webhook, email). Cheap to add, disproportionately
-  valuable once you're not the only user.
+- **Frontend framework/build step.** Trigger: once v1.2's quote workspace
+  and decision log add real cross-page state that `sessionStorage` +
+  global functions start to strain under. Path: Vite + either continued
+  vanilla JS or a light reactive layer (Preact/Alpine), not a heavy SPA
+  framework — see the v1.3+ Vite item above.
+- **Backend / Cloud Functions.** Trigger: Package 9's email notifications
+  are the first hard requirement for this (client-side code can't send
+  email or hold provider API keys safely) — this trigger fires *during*
+  v1.2, not after it.
+- **Firestore scaling limits.** Trigger: once a household is tracking
+  dozens of requests per property with attached quotes/logs/documents.
+  Path: keep every subcollection keyed by real document IDs from the v1.1
+  rewrite onward (this is a "do it right in v1.1" item, not a future
+  migration, given the pre-pivot codebase's task-identity quirk was
+  exactly this problem).
+- **Multi-tenant.** Trigger: TurnFlow Home ever needs to serve more than
+  one unrelated household/owner-client account sharing infrastructure
+  beyond simple per-user `ownerUid` scoping — see v2.0's portfolio/
+  multi-tenancy item.
+- **Observability.** Trigger: the moment usage extends beyond the
+  founding team's own devices. Package 9 already builds a notification
+  delivery log; extend the same instinct to general error reporting
+  (Crashlytics/Performance Monitoring, or a Cloud Function that forwards
+  `console.error`-worthy failures somewhere visible).
 
 ---
 
 ## Suggested order if you want one linear path
 
-Phase 0 (done) → Phase 1 → Phase 2 → Phase 3 → re-evaluate Phase 4 and the
-scaling triggers above based on actual usage, not in advance.
+v1.1 (foundation pivot) → v1.2 Packages 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
+→ 10 → 11 → 12 → re-evaluate v1.3+ and v2.0 based on actual homeowner
+usage, not in advance.
+
+---
+
+## Appendix — pre-pivot phase history (v1.0, complete)
+
+The phases below describe real, completed work on the pre-pivot
+property-turnover tool. They're preserved for history; the infrastructure
+they built (security rules patterns, CSP, pagination, cascading delete,
+CI) is being carried forward and re-pointed at the new domain model in
+v1.1/v1.2 above, not redone from scratch.
+
+**Phase 0 — Stabilize** (done 2026-07-12): fixed `seed.html`'s broken
+import; extracted pure logic into `utils.js` with Vitest coverage; added
+CI.
+
+**Phase 1 — Close the persona gap** (done 2026-07-12): technician
+assignment UI, real client portal (`clientId`-scoped), status lifecycle
+UI for the legacy 4-state model.
+
+**Phase 2 — Harden** (done 2026-07-12): Storage security rules, CSP
+headers with `script-src` fully locked down, login rate limiting +
+App Check wiring, cascading delete for task photos, dashboard pagination.
+
+**Phase 3 — Polish for external eyes** (not done, superseded): PDF
+quality, error/loading UX, environment separation. These items are
+carried forward as v1.2 Package 7 (PDF), v1.2 Package 12 (UX/copy), and
+v1.3+ (environment separation) above rather than completed as originally
+scoped, since the product they'd have polished is being replaced.
+
+**Phase 4 — POC → pilot readiness** (not done, superseded): deploy
+pipeline, usage analytics. Carried forward as v1.3+ items above.
+
+Full detail on what shipped in Phases 0–2 is in `DEVLOG.md`.

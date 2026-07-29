@@ -1,5 +1,70 @@
 # Architecture
 
+> **This document describes the current, pre-pivot implementation.** The
+> target product is TurnFlow Home — see
+> [`REQUIREMENTS.md`](./REQUIREMENTS.md) for the canonical requirements and
+> [`ROADMAP.md`](./ROADMAP.md) for the v1.1 (data model + role rename) and
+> v1.2 (MVP feature build) plan. The "Target domain model" section
+> immediately below is the destination; everything after it ("Tech stack"
+> onward) documents what's actually in the code today, which the v1.1/v1.2
+> work builds on top of rather than discards.
+
+## Target domain model (TurnFlow Home, v1.1+)
+
+This is where the data model is headed, not what's implemented yet (see
+`ROADMAP.md` v1.1 for the migration plan). Recorded here now so new work
+doesn't accidentally deepen the current `projects`-shaped model.
+
+```
+users/{uid}
+  role: "owner" | "vendor" | "collaborator"
+
+properties/{propertyId}
+  ownerUid, address, nickname?, createdAt
+
+requests/{requestId}                 // replaces projects/{projectId}
+  propertyId, ownerUid, category, urgency, room/location,
+  contactMethod, accessInstructions, status, notes
+  status: "Draft" | "Needs Quote" | "Waiting" | "Scheduled" |
+          "In Progress" | "Needs Review" | "Complete" | "Archived"
+  createdAt, updatedAt
+
+  requests/{requestId}/photos/{photoId}
+    type: "before" | "after" | "receipt" | "other"
+    url, storagePath, uploadedByUid, createdAt
+
+  requests/{requestId}/quotes/{quoteId}       // FEAT3/FR5/BRL3
+    vendorUid?, vendorName, amount, attachmentUrl?, notes,
+    status: "pending" | "selected" | "declined"
+
+  requests/{requestId}/decisionLog/{entryId}  // FEAT6/QA3
+    actorUid, action, timestamp, evidenceRefs
+
+  requests/{requestId}/vendorInvites/{inviteId}  // BRL6/FR4
+    vendorEmail, invitedByUid, scope: requestId, status, createdAt
+
+properties/{propertyId}/documents/{documentId}  // FEAT5/EXT4 — vault
+  type: "receipt" | "warranty" | "manual" | "invoice" | "inspection"
+  url, storagePath, uploadedByUid, createdAt
+
+properties/{propertyId}/recurringTasks/{taskId} // FEAT4/FR8
+  category, intervalDays, lastCompletedAt, nextDueAt
+
+properties/{propertyId}/sharing/{shareId}       // BRL5/SYS7
+  granteeUid, granteeRole: "collaborator" | "vendor",
+  scope: "property" | requestId
+```
+
+Role semantics: `owner` replaces `pm`/`admin`; `vendor` replaces `tech`
+but is scoped per-request via `vendorInvites`, not per-project assignment;
+`collaborator` replaces `client` but is scoped via `sharing`, not a single
+`clientId` field. See `ROADMAP.md` v1.1 for why this is a rename-and-reshape
+rather than a pure rename.
+
+---
+
+## Current implementation (pre-pivot)
+
 ## Tech stack
 
 | Layer | Choice | Notes |
@@ -22,7 +87,7 @@ frictionless to run (`npx serve .` and go) but means there's no dependency
 lockfile for the frontend runtime libs, no tree-shaking, and no offline dev
 story. See `ROADMAP.md` for when this stops being the right tradeoff.
 
-## Roles
+## Roles (current, pre-pivot — see "Target domain model" above for `owner`/`vendor`/`collaborator`)
 
 | Role | Home page | Can do |
 |---|---|---|
@@ -50,7 +115,7 @@ missing this guard as of 2026-07-12 and have since been fixed — see
 guard — it calls `requireRole('client')` instead, since it's the real
 `client`-role portal (FR6), not a PM page.
 
-## Data model (Firestore)
+## Data model (Firestore) — current, pre-pivot
 
 ```
 users/{uid}
