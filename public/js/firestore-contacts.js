@@ -1,6 +1,10 @@
 // ===================================================
-// TurnFlow™ Firestore Contacts Management
+// TurnFlow Home — Firestore Contacts Management
 // ===================================================
+// General-purpose people directory (vendors, advisors, etc. an owner
+// wants to keep on hand). Not yet linked to the vendor-invite model
+// (BR5/BRL6) — see docs/ARCHITECTURE.md's "clientId vs. contacts" note,
+// carried forward from the pre-pivot design as still-unresolved scope.
 
 import { db } from './firebase-config.js';
 import {

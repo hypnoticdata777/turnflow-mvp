@@ -7,6 +7,76 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-29 — v1.1 foundation pivot: domain model + role rewrite shipped
+
+- **Shipped `ROADMAP.md` v1.1 in full.** The codebase now runs on
+  TurnFlow Home's domain model instead of the pre-pivot property-turnover
+  one. This closed `BRL1` (✅), `BRL6` (✅), `SYS2` (✅), and `SYS7` (✅) in
+  `REQUIREMENTS.md`, and moved several others (`BR1`, `BR5`, `BRL3`,
+  `BRL4`, `BRL5`, `CON1`, `CON2`, `CON6`, `FEAT1`, `FEAT2`, `FEAT7`,
+  `FR1`✅, `FR2`, `FR3`, `FR4`, `FR5`, `FR6`✅, `QA1`, `QA2`, `SYS3`,
+  `SYS6`, `UR1`, `UR4`, `UR5`, `UR6`) from ⬜/🟡 toward 🟡/✅ — see that
+  file's per-row notes for exactly what shipped vs. what's still v1.2.
+- **`firestore.rules`/`storage.rules` rewritten.** New roles
+  (`owner`/`vendor`/`collaborator`, collapsing the old `pm`/`admin`/
+  `tech`/`client`), new collections (`properties`, `requests` replacing
+  `projects`). A `vendor` now reads only their `assignedVendorUid`
+  request and a `collaborator` only their `collaboratorUid` request —
+  enforced server-side in both Firestore and Storage — closing the
+  pre-pivot gap where any authenticated user of a role could read any
+  project/photo.
+- **New data layer:** `firestore-properties.js` (new) and
+  `firestore-requests.js` (replaces `firestore-projects.js`). Requests
+  are single-issue records (category/urgency/location/contactMethod/
+  accessInstructions/notes/status/three cost fields), not itemized
+  turnover jobs. Photos moved from a task-index-keyed subcollection to a
+  real-document-ID subcollection directly under a request — this
+  resolves the pre-pivot task-identity/cascading-delete quirk noted in
+  the old `ARCHITECTURE.md` as a side effect, not a separate fix.
+- **`utils.js` rewritten:** `REQUEST_STATUSES` (8-state lifecycle)
+  replaces `PROJECT_STATUSES` (4-state); `costForRequest()`/
+  `costLabelForRequest()` (new, implements `BRL3` — final beats quoted
+  beats estimated) replace `calculateEstimateTotal()`; `tf_getTaskStatus`/
+  `tf_statusLabel` removed (no per-task status now that a request has one
+  request-level status); `assignedVendorLabel`/`assignedCollaboratorLabel`
+  replace `assignedTechLabel`/`assignedClientLabel`.
+- **Every page rewritten or replaced:** `dashboard.html` (owner, now
+  request-centric), `new-request.html` (replaces `new-project.html`,
+  single-issue guided-ish form with an emergency disclaimer for `BRL4`),
+  `request.html` (replaces `estimate.html`, detail view with cost fields
+  + photo upload + PDF export), `vendor.html` (replaces
+  `technician.html`), `collaborator.html` (replaces
+  `pending-approval.html`), `properties.html` (new — `FR1`). Retired
+  `pending-send.html` — its Approved→Sent step doesn't exist in the new
+  8-state lifecycle; the dashboard's general status dropdown covers it.
+- **`backup.html` rewritten** to export/import properties + requests
+  together as one JSON file, with property-ID references correctly
+  remapped on restore instead of silently breaking.
+- **`stats.html` rewritten** to chart requests-by-status and cost-by-
+  property against the new schema.
+- **Test suite updated:** `public/js/__tests__/utils.test.js` rewritten
+  for the new exports — 36 tests, all passing (`npm test`).
+- **Verification method** (no live browser available in this session):
+  `node --check` on every JS file for syntax; a repo-wide grep for every
+  retired file name, collection name (`projects`, `assignedTechId`,
+  `clientId`), and role string (`pm`/`admin`/`tech`/`client`) to confirm
+  no stale references survived the rewrite; a script/href resolution
+  check confirming every `<script src>` and `href` across every HTML page
+  points at a file that actually exists; and an import-resolution check
+  confirming every relative `import` in every JS file resolves to a real
+  local file.
+- **Explicitly not done in this pass** (all tracked as v1.2 packages in
+  `ROADMAP.md`): guided next-step checklists, multi-quote comparison,
+  real email-based vendor/collaborator invites, an approval/decision log,
+  a property-level document vault distinct from request photos, recurring
+  maintenance reminders, any notification service, and formatted
+  PDF/CSV proof-packet export.
+- **Data migration:** none needed — confirmed with the project owner that
+  no production data existed yet, so the schema/role rewrite shipped
+  clean rather than via a migration script.
+
+---
+
 ### 2026-07-29 — Product pivot: TurnFlow Home requirements adopted, documentation realigned
 
 - **Decision:** TurnFlow is pivoting from the pre-pivot property-turnover

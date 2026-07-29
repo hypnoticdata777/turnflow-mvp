@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Project Statistics</title>
+  <title>Stats - TurnFlow Home</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script type="module" src="public/js/script.js"></script>
+  <script type="module" src="public/js/load-sidebar.js"></script>
 </head>
 
 <body class="bg-gray-100">
@@ -19,23 +19,25 @@
         <button id="logoutBtn" class="px-3 py-1 border rounded">Logout</button>
       </header>
 
-      <h1 class="text-3xl font-bold mb-6">📊 Project Statistics</h1>
+      <h1 class="text-3xl font-bold mb-6">📊 Maintenance Stats</h1>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="bg-white p-4 rounded-xl shadow">
-          <h2 class="text-xl font-semibold mb-4">Tasks Completion Overview</h2>
-          <canvas id="taskChart" style="max-height: 350px;"></canvas>
+          <h2 class="text-xl font-semibold mb-4">Requests by Status</h2>
+          <canvas id="statusChart" style="max-height: 350px;"></canvas>
         </div>
 
         <div class="bg-white p-4 rounded-xl shadow">
-          <h2 class="text-xl font-semibold mb-4">Project Costs</h2>
+          <h2 class="text-xl font-semibold mb-4">Cost by Property</h2>
           <canvas id="costChart" style="max-height: 350px;"></canvas>
         </div>
       </div>
     </div>
   </div>
 
-  <script type="module" src="public/js/guard-pm-admin.js"></script>
+  <script type="module" src="public/js/guard-owner.js"></script>
+
+  <script type="module" src="public/js/pages/stats.js"></script>
 
   <script type="module" src="public/js/firebase-config.js"></script>
   <script type="module" src="public/js/auth.js"></script>

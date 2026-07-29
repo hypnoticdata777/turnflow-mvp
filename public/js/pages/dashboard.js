@@ -1,33 +1,34 @@
-import { getProjectsPage, updateProject } from '../firestore-projects.js';
+import { getRequestsPage, updateRequest, deleteRequest } from '../firestore-requests.js';
+import { getPropertiesForOwner } from '../firestore-properties.js';
 import { getUsersByRole } from '../firestore-users.js';
-import { escHtml, formatUserLabel, PROJECT_STATUSES, projectStatusBadgeClasses } from '../utils.js';
+import { currentUser } from '../auth.js';
+import {
+  escHtml, formatUserLabel, REQUEST_STATUSES, requestStatusBadgeClasses,
+  costForRequest, costLabelForRequest
+} from '../utils.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const projectList = document.getElementById("projectList");
+  const requestList = document.getElementById("requestList");
   const loadMoreBtn = document.getElementById("loadMoreBtn");
+  const ownerUid = currentUser()?.uid;
 
-  let techs = [];
-  let clients = [];
+  let vendors = [];
+  let collaborators = [];
+  let properties = [];
   let cursor = null;
   let totalLoaded = 0;
 
-  const tasksHTMLFor = (project) => project.tasks
-    .map((t, i) => {
-      const key = (window.tf_getTaskStatus) ? tf_getTaskStatus(t) : (t.completed ? "completed" : "open");
-      const label = (window.tf_statusLabel) ? tf_statusLabel(key) : (t.completed ? "Completed" : "Pending");
-      const badge = `<span class="task-status tf-badge" data-status="${escHtml(key)}">${escHtml(label)}</span>`;
-      return `
-        <li class="flex justify-between items-center border p-2 mb-1 bg-gray-50 rounded" data-task-id="${i}">
-          <span>${escHtml(t.name)} - ${badge}</span>
-          ${!t.completed ? `<button data-project-id="${escHtml(project.id)}" data-task-index="${i}" class="completeBtn bg-green-500 text-white px-2 py-1 rounded">Complete</button>` : ""}
-        </li>`;
-    }).join("");
+  const propertyLabel = (propertyId) => {
+    const p = properties.find(p => p.id === propertyId);
+    if (!p) return propertyId ? 'Unknown property' : 'No property selected';
+    return p.nickname ? `${p.nickname} — ${p.address}` : p.address;
+  };
 
-  // Shared by the tech- and client-assignment dropdowns: builds
-  // <option> tags for a list of users against whichever id field
-  // (assignedTechId / clientId) is currently set on the project.
-  const optionsFor = (project, users, idField) => {
-    const currentId = project[idField];
+  // Shared by the vendor-assignment and collaborator-sharing dropdowns:
+  // builds <option> tags for a list of users against whichever id field
+  // (assignedVendorUid / collaboratorUid) is currently set on the request.
+  const optionsFor = (reqData, users, idField) => {
+    const currentId = reqData[idField];
     const unassignedSelected = !currentId ? "selected" : "";
     const options = users.map(u =>
       `<option value="${escHtml(u.uid)}" ${u.uid === currentId ? "selected" : ""}>${escHtml(formatUserLabel(u))}</option>`
@@ -35,124 +36,127 @@ document.addEventListener("DOMContentLoaded", async () => {
     return `<option value="" ${unassignedSelected}>— Unassigned —</option>${options}`;
   };
 
-  const statusOptionsFor = (project) => PROJECT_STATUSES.map(s =>
-    `<option value="${escHtml(s)}" ${s === (project.status || 'Pending Approval') ? "selected" : ""}>${escHtml(s)}</option>`
+  const statusOptionsFor = (reqData) => REQUEST_STATUSES.map(s =>
+    `<option value="${escHtml(s)}" ${s === (reqData.status || 'Draft') ? "selected" : ""}>${escHtml(s)}</option>`
   ).join("");
 
-  const projectCardHTML = (project) => {
-    const total = project.tasks.reduce((sum, task) => sum + task.hours * task.rate + task.material, 0);
+  const requestCardHTML = (reqData) => {
+    const cost = costForRequest(reqData);
+    const costLabel = costLabelForRequest(reqData);
     return `
       <div class="border p-4 rounded bg-white shadow">
         <div class="flex justify-between items-start">
-          <h2 class="text-xl font-semibold">${escHtml(project.projectName)} (${escHtml(project.owner)})</h2>
-          <span class="text-xs font-medium px-2 py-1 rounded-full ${projectStatusBadgeClasses(project.status)}">${escHtml(project.status || 'Pending Approval')}</span>
+          <h2 class="text-xl font-semibold">${escHtml(reqData.title || '(untitled request)')}</h2>
+          <span class="text-xs font-medium px-2 py-1 rounded-full ${requestStatusBadgeClasses(reqData.status)}">${escHtml(reqData.status || 'Draft')}</span>
         </div>
-        <p><strong>Address:</strong> ${escHtml(project.address)}, Unit ${escHtml(project.unit)}</p>
-        <p><strong>Target Date:</strong> ${escHtml(project.date)}</p>
-        <p><strong>Total Estimate:</strong> $${total.toFixed(2)}</p>
+        <p><strong>Property:</strong> ${escHtml(propertyLabel(reqData.propertyId))}</p>
+        <p><strong>Category:</strong> ${escHtml(reqData.category || '—')} &nbsp; <strong>Urgency:</strong> ${escHtml(reqData.urgency || '—')}</p>
+        <p><strong>Cost (${escHtml(costLabel)}):</strong> $${cost.toFixed(2)}</p>
         <label class="block mt-2 text-sm">
           <strong>Status:</strong>
-          <select class="assignSelect border rounded p-1 ml-1" data-field="status" data-project-id="${escHtml(project.id)}">
-            ${statusOptionsFor(project)}
+          <select class="assignSelect border rounded p-1 ml-1" data-field="status" data-request-id="${escHtml(reqData.id)}">
+            ${statusOptionsFor(reqData)}
           </select>
           <span class="assignStatus text-xs text-gray-500 ml-1"></span>
         </label>
         <label class="block mt-2 text-sm">
-          <strong>Assigned Technician:</strong>
-          <select class="assignSelect border rounded p-1 ml-1" data-field="assignedTechId" data-project-id="${escHtml(project.id)}">
-            ${optionsFor(project, techs, "assignedTechId")}
+          <strong>Assigned Vendor:</strong>
+          <select class="assignSelect border rounded p-1 ml-1" data-field="assignedVendorUid" data-request-id="${escHtml(reqData.id)}">
+            ${optionsFor(reqData, vendors, "assignedVendorUid")}
           </select>
           <span class="assignStatus text-xs text-gray-500 ml-1"></span>
         </label>
         <label class="block mt-1 text-sm">
-          <strong>Client Portal Access:</strong>
-          <select class="assignSelect border rounded p-1 ml-1" data-field="clientId" data-project-id="${escHtml(project.id)}">
-            ${optionsFor(project, clients, "clientId")}
+          <strong>Shared With (Collaborator):</strong>
+          <select class="assignSelect border rounded p-1 ml-1" data-field="collaboratorUid" data-request-id="${escHtml(reqData.id)}">
+            ${optionsFor(reqData, collaborators, "collaboratorUid")}
           </select>
           <span class="assignStatus text-xs text-gray-500 ml-1"></span>
         </label>
-        <h3 class="mt-3 font-bold">Tasks:</h3>
-        <ul class="mt-1">${tasksHTMLFor(project)}</ul>
         <div class="mt-3 flex gap-2">
-          <button data-action="view" data-project-id="${escHtml(project.id)}" class="bg-blue-600 text-white px-3 py-1 rounded">View Estimate</button>
-          <button data-action="edit" data-project-id="${escHtml(project.id)}" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
-          <button data-action="delete" data-project-id="${escHtml(project.id)}" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
+          <button data-action="view" data-request-id="${escHtml(reqData.id)}" class="bg-blue-600 text-white px-3 py-1 rounded">View</button>
+          <button data-action="edit" data-request-id="${escHtml(reqData.id)}" class="bg-yellow-500 text-white px-3 py-1 rounded">Edit</button>
+          <button data-action="delete" data-request-id="${escHtml(reqData.id)}" class="bg-red-600 text-white px-3 py-1 rounded">Delete</button>
         </div>
       </div>`;
   };
 
-  // Fetches and appends the next page of projects (NFR5). Loads one page
-  // at a time via cursor-based pagination instead of the old
-  // getAllProjects() full-collection fetch, which doesn't scale past a
-  // few hundred projects.
+  // Fetches and appends the next page of requests, cursor-based (legacy NFR5).
   async function loadNextPage() {
     loadMoreBtn.disabled = true;
     loadMoreBtn.textContent = "Loading…";
 
     try {
-      const { projects, lastDoc, hasMore } = await getProjectsPage({ cursor });
+      const { requests, lastDoc, hasMore } = await getRequestsPage({ ownerUid, cursor });
       cursor = lastDoc;
 
       if (totalLoaded === 0) {
-        projectList.innerHTML = ""; // clear the initial "Loading projects…" placeholder
+        requestList.innerHTML = ""; // clear the initial "Loading…" placeholder
       }
 
-      if (totalLoaded === 0 && projects.length === 0) {
-        projectList.innerHTML = `<p class="text-gray-500">No projects saved yet.</p>`;
+      if (totalLoaded === 0 && requests.length === 0) {
+        requestList.innerHTML = `<p class="text-gray-500">No maintenance requests yet. <a class="text-blue-600 underline" href="new-request.html">Create your first one</a>.</p>`;
       } else {
-        projectList.insertAdjacentHTML("beforeend", projects.map(projectCardHTML).join(""));
+        requestList.insertAdjacentHTML("beforeend", requests.map(requestCardHTML).join(""));
       }
 
-      totalLoaded += projects.length;
+      totalLoaded += requests.length;
       loadMoreBtn.classList.toggle("hidden", !hasMore);
-      loadMoreBtn.textContent = "Load More Projects";
+      loadMoreBtn.textContent = "Load More";
       loadMoreBtn.disabled = false;
     } catch (error) {
-      console.error("Error loading projects:", error);
+      console.error("Error loading requests:", error);
       if (totalLoaded === 0) {
-        projectList.innerHTML = `<p class="text-red-500">Failed to load projects. Check your connection and try refreshing.</p>`;
+        requestList.innerHTML = `<p class="text-red-500">Failed to load requests. Check your connection and try refreshing.</p>`;
       }
       loadMoreBtn.classList.add("hidden");
     }
   }
 
-  // Single event listener for all project action buttons. Delegated on
-  // the container (not attached per-card), so cards appended later via
-  // "Load More" are handled automatically with no extra wiring.
-  projectList.addEventListener("click", (e) => {
-    const btn = e.target.closest("button[data-action], button.completeBtn");
+  // Single event listener for all request action buttons, delegated on
+  // the container so cards appended later via "Load More" work with no
+  // extra wiring.
+  requestList.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-action]");
     if (!btn) return;
 
-    if (btn.classList.contains("completeBtn")) {
-      const pid = btn.dataset.projectId;
-      const idx = parseInt(btn.dataset.taskIndex, 10);
-      if (pid && !isNaN(idx)) window.markTaskComplete(pid, idx);
-      return;
-    }
-
-    const pid = btn.dataset.projectId;
-    if (!pid) return;
+    const rid = btn.dataset.requestId;
+    if (!rid) return;
     const action = btn.dataset.action;
-    if (action === "view") window.viewProject(pid);
-    else if (action === "edit") window.editProject(pid);
-    else if (action === "delete") window.deleteProject(pid);
+
+    if (action === "view") {
+      sessionStorage.setItem("viewing_request_id", rid);
+      window.location.href = "request.html";
+    } else if (action === "edit") {
+      sessionStorage.setItem("editing_request_id", rid);
+      window.location.href = "new-request.html";
+    } else if (action === "delete") {
+      if (!confirm("Delete this request? This also permanently deletes all photos attached to it. This cannot be undone.")) return;
+      try {
+        await deleteRequest(rid);
+        window.location.reload();
+      } catch (error) {
+        console.error("Error deleting request:", error);
+        alert("Failed to delete request. Please try again.");
+      }
+    }
   });
 
-  // Technician / client assignment dropdowns (both use .assignSelect,
-  // distinguished by data-field so one handler covers both fields)
-  projectList.addEventListener("change", async (e) => {
+  // Status / vendor-assignment / collaborator-sharing dropdowns (all use
+  // .assignSelect, distinguished by data-field so one handler covers all three)
+  requestList.addEventListener("change", async (e) => {
     const select = e.target.closest("select.assignSelect");
     if (!select) return;
 
-    const pid = select.dataset.projectId;
+    const rid = select.dataset.requestId;
     const field = select.dataset.field;
     const statusEl = select.parentElement.querySelector(".assignStatus");
-    const newId = select.value;
+    const newValue = select.value;
 
     select.disabled = true;
     statusEl.textContent = "Saving…";
     try {
-      await updateProject(pid, { [field]: newId || null });
+      await updateRequest(rid, { [field]: newValue || null });
       statusEl.textContent = "Saved ✓";
       setTimeout(() => { statusEl.textContent = ""; }, 2000);
     } catch (error) {
@@ -166,9 +170,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   loadMoreBtn.addEventListener("click", loadNextPage);
 
   try {
-    [techs, clients] = await Promise.all([getUsersByRole('tech'), getUsersByRole('client')]);
+    [vendors, collaborators, properties] = await Promise.all([
+      getUsersByRole('vendor'),
+      getUsersByRole('collaborator'),
+      getPropertiesForOwner(ownerUid)
+    ]);
   } catch (error) {
-    console.error("Error loading technician/client lists for assignment dropdowns:", error);
+    console.error("Error loading vendor/collaborator/property lists:", error);
   }
 
   await loadNextPage();

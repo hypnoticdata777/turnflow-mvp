@@ -1,7 +1,7 @@
 // ===================================================
-// TurnFlow™ Firestore Users Lookup
+// TurnFlow Home — Firestore Users Lookup
 // ===================================================
-// Read-only helpers over the `users` collection. Only PM/Admin can call
+// Read-only helpers over the `users` collection. Only an owner can call
 // getUsersByRole in practice — enforced by firestore.rules, not here.
 
 import { db } from './firebase-config.js';
@@ -13,7 +13,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
 /**
- * Get all users with a given role (e.g. 'tech').
+ * Get all users with a given role (e.g. 'vendor', 'collaborator').
  * @param {string} role
  * @returns {Promise<Array<{uid: string, role: string, email?: string, name?: string}>>}
  */

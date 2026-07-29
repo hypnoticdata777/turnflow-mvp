@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Household Collaborator Portal - TurnFlow Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <base href="./">
+</head>
+
+<body class="bg-gray-100">
+
+  <script type="module" src="public/js/pages/collaborator.guard.js"></script>
+
+  <script type="module" src="public/js/pages/collaborator.header.js"></script>
+
+  <main class="max-w-4xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-2">Shared Requests</h1>
+    <p class="text-gray-500 mb-6">Read-only view of the maintenance requests shared with you and their status.</p>
+    <div id="requestList" class="space-y-4"></div>
+  </main>
+
+  <script type="module" src="public/js/pages/collaborator.js"></script>
+</body>
+</html>

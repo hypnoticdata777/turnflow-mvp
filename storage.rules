@@ -7,28 +7,35 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // Cross-service lookup into the same users/{uid}.role doc that
-    // firestore.rules checks, so Storage and Firestore enforce the same
-    // role model instead of drifting apart.
+    // Cross-service lookups into the same collections firestore.rules
+    // checks, so Storage and Firestore never disagree about who can see
+    // or write a file.
     function getRole() {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    function isPMorAdmin() {
-      return isAuthed() && getRole() in ['pm', 'admin'];
+    function getRequest(requestId) {
+      return firestore.get(/databases/(default)/documents/requests/$(requestId)).data;
     }
 
-    // turnflow/{projectId}/{taskId}/{type}/{uid}/{fileName}
-    // Mirrors the projects/{id}/tasks/{id}/photos/{id} Firestore rule:
-    // any authenticated user can read, only the uploading tech can write
-    // their own photo. Delete is pm/admin (not admin-only) so a plain pm
-    // deleting their own project can also cascade-delete its photos —
-    // see deleteProject() in firestore-projects.js and the matching note
-    // in firestore.rules.
-    match /turnflow/{projectId}/{taskId}/{type}/{uid}/{fileName} {
-      allow read: if isAuthed();
-      allow write: if isAuthed() && request.auth.uid == uid && getRole() == 'tech';
-      allow delete: if isPMorAdmin();
+    // turnflow/{requestId}/{type}/{uid}/{fileName}
+    // Mirrors the requests/{id}/photos/{id} Firestore rule above: read is
+    // scoped to the request's owner, its assigned vendor, or its shared
+    // collaborator; write requires the uploader's own uid on the path AND
+    // being either the owner or the assigned vendor. This closes the
+    // legacy read-scoping gap (any authenticated user could previously
+    // read any photo) as part of the v1.1 role rewrite.
+    match /turnflow/{requestId}/{type}/{uid}/{fileName} {
+      allow read: if isAuthed() && (
+        (getRole() == 'owner' && getRequest(requestId).ownerUid == request.auth.uid) ||
+        (getRole() == 'vendor' && getRequest(requestId).assignedVendorUid == request.auth.uid) ||
+        (getRole() == 'collaborator' && getRequest(requestId).collaboratorUid == request.auth.uid)
+      );
+      allow write: if isAuthed() && request.auth.uid == uid && (
+        (getRole() == 'owner' && getRequest(requestId).ownerUid == request.auth.uid) ||
+        (getRole() == 'vendor' && getRequest(requestId).assignedVendorUid == request.auth.uid)
+      );
+      allow delete: if isAuthed() && getRole() == 'owner' && getRequest(requestId).ownerUid == request.auth.uid;
     }
 
     // Deny everything outside the known upload path by default.

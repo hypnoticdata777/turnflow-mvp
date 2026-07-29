@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>TurnFlow — Seed</title>
+  <title>TurnFlow Home — Seed</title>
   <base href="./">
   <style>
     body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:24px}
@@ -13,19 +13,18 @@
   </style>
 </head>
 <body>
-  <h1>Seed a sample project</h1>
-  <p>Log in first (as the <strong>technician</strong>), then open this page. We’ll create one project assigned to the current user.</p>
+  <h1>Seed a sample property + request</h1>
+  <p>Log in first (as the <strong>owner</strong>), then open this page. We'll create one property and one request owned by the current user.</p>
 
   <div id="who"></div>
 
-  <h3>Project values (you can tweak):</h3>
-  <label> Name <input id="name" value="Move out - 1"></label>
-  <label> Address <input id="address" value="4563 N 51 Blv"></label>
-  <label> Unit <input id="unit" value="1"></label>
-  <label> Owner <input id="owner" value="Maria Felix"></label>
-  <label> Target Date <input id="date" value="2025-08-24"></label>
+  <h3>Values (you can tweak):</h3>
+  <label> Address <input id="address" value="4563 N 51 Blvd"></label>
+  <label> Unit <input id="unit" value=""></label>
+  <label> Nickname <input id="nickname" value="Main house"></label>
+  <label> Request Title <input id="title" value="Kitchen faucet leaking"></label>
 
-  <p style="margin-top:12px"><button id="seedBtn">Create project</button></p>
+  <p style="margin-top:12px"><button id="seedBtn">Create property + request</button></p>
   <pre id="out">Ready.</pre>
 
   <script type="module" src="public/js/pages/seed.js"></script>

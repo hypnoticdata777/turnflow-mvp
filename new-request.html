@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TurnFlow Home — New Request</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script type="module" src="public/js/load-sidebar.js"></script>
+  <script type="module" src="public/js/guard-owner.js"></script>
+</head>
+
+<body class="bg-gray-100">
+  <div class="flex">
+
+    <div id="sidebar-container"></div>
+
+    <main class="flex-1 p-6">
+      <h1 id="pageTitle" class="text-3xl font-bold mb-6">🆕 New Maintenance Request</h1>
+
+      <div class="max-w-2xl bg-white p-6 rounded-xl shadow">
+        <p id="formError" class="text-red-500 text-sm mb-4 hidden"></p>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">Property</label>
+            <select id="propertyId" class="w-full p-2 border rounded bg-white">
+              <option value="">— loading properties —</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Short Title</label>
+            <input id="title" type="text" class="w-full p-2 border rounded" placeholder="e.g. Kitchen faucet leaking">
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-1">Category</label>
+              <select id="category" class="w-full p-2 border rounded bg-white"></select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Urgency</label>
+              <select id="urgency" class="w-full p-2 border rounded bg-white"></select>
+            </div>
+          </div>
+
+          <p id="emergencyNotice" class="hidden text-sm bg-red-50 border border-red-200 text-red-700 rounded p-3">
+            ⚠️ TurnFlow Home is not an emergency dispatch service. If this is a
+            genuine emergency (fire, gas leak, flooding, electrical hazard),
+            contact emergency services or a licensed professional directly —
+            use this request only to track and document it.
+          </p>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Room / Location</label>
+            <input id="location" type="text" class="w-full p-2 border rounded" placeholder="e.g. Kitchen, 2nd floor bathroom">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Preferred Contact Method</label>
+            <select id="contactMethod" class="w-full p-2 border rounded bg-white"></select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Access Instructions</label>
+            <textarea id="accessInstructions" rows="2" class="w-full p-2 border rounded" placeholder="e.g. Lockbox code, gate access, pets on site"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Notes</label>
+            <textarea id="notes" rows="3" class="w-full p-2 border rounded" placeholder="Describe the issue"></textarea>
+          </div>
+        </div>
+
+        <div class="mt-6 flex gap-3">
+          <button id="saveRequestBtn" class="bg-green-600 text-white px-6 py-2 rounded">💾 Save Request</button>
+          <a href="dashboard.html" class="bg-gray-600 text-white px-6 py-2 rounded inline-block">⬅ Cancel</a>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module" src="public/js/pages/new-request.js"></script>
+</body>
+</html>

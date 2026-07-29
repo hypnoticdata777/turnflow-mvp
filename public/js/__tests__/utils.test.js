@@ -1,16 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
   escHtml,
-  tf_getTaskStatus,
-  tf_statusLabel,
   tf_parseDate,
   tf_isValidDate,
-  calculateEstimateTotal,
   formatUserLabel,
-  assignedTechLabel,
-  assignedClientLabel,
-  PROJECT_STATUSES,
-  projectStatusBadgeClasses,
+  assignedVendorLabel,
+  assignedCollaboratorLabel,
+  REQUEST_STATUSES,
+  requestStatusBadgeClasses,
+  costForRequest,
+  costLabelForRequest,
   LOGIN_LOCKOUT_THRESHOLD,
   LOGIN_LOCKOUT_MS,
   normalizeEmailKey,
@@ -62,75 +61,6 @@ describe('tf_isValidDate / tf_parseDate', () => {
   });
 });
 
-describe('tf_getTaskStatus', () => {
-  const now = new Date('2026-07-12T00:00:00Z');
-
-  it('returns completed when task.completed is true, regardless of other fields', () => {
-    expect(tf_getTaskStatus({ completed: true, blocked: true }, now)).toBe('completed');
-  });
-
-  it('returns blocked when task.blocked is true and not completed', () => {
-    expect(tf_getTaskStatus({ blocked: true }, now)).toBe('blocked');
-  });
-
-  it('returns overdue when dueDate is in the past', () => {
-    expect(tf_getTaskStatus({ dueDate: '2026-01-01' }, now)).toBe('overdue');
-  });
-
-  it('returns open when dueDate is in the future', () => {
-    expect(tf_getTaskStatus({ dueDate: '2027-01-01' }, now)).toBe('open');
-  });
-
-  it('returns inprogress when started but not ended', () => {
-    expect(tf_getTaskStatus({ startTime: '2026-07-01' }, now)).toBe('inprogress');
-  });
-
-  it('returns open when started and ended', () => {
-    expect(tf_getTaskStatus({ startTime: '2026-07-01', endTime: '2026-07-02' }, now)).toBe('open');
-  });
-
-  it('returns open for a bare task with no signal fields', () => {
-    expect(tf_getTaskStatus({}, now)).toBe('open');
-  });
-});
-
-describe('tf_statusLabel', () => {
-  it('maps known status keys to display labels', () => {
-    expect(tf_statusLabel('completed')).toBe('Completed');
-    expect(tf_statusLabel('overdue')).toBe('Overdue');
-    expect(tf_statusLabel('blocked')).toBe('Blocked');
-    expect(tf_statusLabel('inprogress')).toBe('In Progress');
-    expect(tf_statusLabel('open')).toBe('Pending');
-  });
-
-  it('falls back to Pending for unknown keys', () => {
-    expect(tf_statusLabel('bogus')).toBe('Pending');
-  });
-});
-
-describe('calculateEstimateTotal', () => {
-  it('sums (hours * rate) + material across tasks', () => {
-    const tasks = [
-      { hours: 2, rate: 50, material: 10 },
-      { hours: 1, rate: 75, material: 0 }
-    ];
-    expect(calculateEstimateTotal(tasks)).toBe(2 * 50 + 10 + 1 * 75 + 0);
-  });
-
-  it('treats missing/non-numeric fields as 0', () => {
-    expect(calculateEstimateTotal([{ hours: '', rate: undefined, material: 'abc' }])).toBe(0);
-  });
-
-  it('returns 0 for an empty task list', () => {
-    expect(calculateEstimateTotal([])).toBe(0);
-    expect(calculateEstimateTotal()).toBe(0);
-  });
-
-  it('parses string-valued numeric fields (matches raw DOM input.value)', () => {
-    expect(calculateEstimateTotal([{ hours: '3', rate: '20', material: '15' }])).toBe(75);
-  });
-});
-
 describe('formatUserLabel', () => {
   it('prefers name over email over uid', () => {
     expect(formatUserLabel({ uid: 'u1', email: 'a@b.com', name: 'Alex' })).toBe('Alex');
@@ -144,68 +74,107 @@ describe('formatUserLabel', () => {
   });
 });
 
-describe('assignedTechLabel', () => {
-  const techs = [
-    { uid: 'tech-1', name: 'Jamie Rivera' },
-    { uid: 'tech-2', email: 'sam@turnflow.test' }
+describe('assignedVendorLabel', () => {
+  const vendors = [
+    { uid: 'vendor-1', name: 'Jamie Rivera' },
+    { uid: 'vendor-2', email: 'sam@turnflow.test' }
   ];
 
-  it('returns Unassigned when no assignedTechId is set', () => {
-    expect(assignedTechLabel({}, techs)).toBe('Unassigned');
-    expect(assignedTechLabel({ assignedTechId: '' }, techs)).toBe('Unassigned');
+  it('returns Unassigned when no assignedVendorUid is set', () => {
+    expect(assignedVendorLabel({}, vendors)).toBe('Unassigned');
+    expect(assignedVendorLabel({ assignedVendorUid: '' }, vendors)).toBe('Unassigned');
   });
 
-  it('resolves the assigned tech to their display label', () => {
-    expect(assignedTechLabel({ assignedTechId: 'tech-1' }, techs)).toBe('Jamie Rivera');
-    expect(assignedTechLabel({ assignedTechId: 'tech-2' }, techs)).toBe('sam@turnflow.test');
+  it('resolves the assigned vendor to their display label', () => {
+    expect(assignedVendorLabel({ assignedVendorUid: 'vendor-1' }, vendors)).toBe('Jamie Rivera');
+    expect(assignedVendorLabel({ assignedVendorUid: 'vendor-2' }, vendors)).toBe('sam@turnflow.test');
   });
 
-  it('falls back to a placeholder when the tech is not in the provided list', () => {
-    expect(assignedTechLabel({ assignedTechId: 'ghost' }, techs)).toBe('Unknown (ghost)');
+  it('falls back to a placeholder when the vendor is not in the provided list', () => {
+    expect(assignedVendorLabel({ assignedVendorUid: 'ghost' }, vendors)).toBe('Unknown (ghost)');
   });
 
-  it('defaults the tech list to empty', () => {
-    expect(assignedTechLabel({ assignedTechId: 'tech-1' })).toBe('Unknown (tech-1)');
-  });
-});
-
-describe('assignedClientLabel', () => {
-  const clients = [{ uid: 'client-1', name: 'Maria Felix' }];
-
-  it('returns Unassigned when no clientId is set', () => {
-    expect(assignedClientLabel({}, clients)).toBe('Unassigned');
-  });
-
-  it('resolves the assigned client to their display label', () => {
-    expect(assignedClientLabel({ clientId: 'client-1' }, clients)).toBe('Maria Felix');
-  });
-
-  it('falls back to a placeholder when the client is not in the provided list', () => {
-    expect(assignedClientLabel({ clientId: 'ghost' }, clients)).toBe('Unknown (ghost)');
-  });
-
-  it('does not confuse tech and client assignment fields', () => {
-    const project = { assignedTechId: 'tech-1', clientId: 'client-1' };
-    expect(assignedClientLabel(project, clients)).toBe('Maria Felix');
-    expect(assignedClientLabel(project, [{ uid: 'tech-1', name: 'Jamie Rivera' }])).toBe('Unknown (client-1)');
+  it('defaults the vendor list to empty', () => {
+    expect(assignedVendorLabel({ assignedVendorUid: 'vendor-1' })).toBe('Unknown (vendor-1)');
   });
 });
 
-describe('PROJECT_STATUSES', () => {
-  it('lists the lifecycle in forward order', () => {
-    expect(PROJECT_STATUSES).toEqual(['Pending Approval', 'Approved', 'Sent', 'Completed']);
+describe('assignedCollaboratorLabel', () => {
+  const collaborators = [{ uid: 'collab-1', name: 'Maria Felix' }];
+
+  it('returns Unassigned when no collaboratorUid is set', () => {
+    expect(assignedCollaboratorLabel({}, collaborators)).toBe('Unassigned');
+  });
+
+  it('resolves the assigned collaborator to their display label', () => {
+    expect(assignedCollaboratorLabel({ collaboratorUid: 'collab-1' }, collaborators)).toBe('Maria Felix');
+  });
+
+  it('falls back to a placeholder when the collaborator is not in the provided list', () => {
+    expect(assignedCollaboratorLabel({ collaboratorUid: 'ghost' }, collaborators)).toBe('Unknown (ghost)');
+  });
+
+  it('does not confuse vendor and collaborator assignment fields', () => {
+    const reqData = { assignedVendorUid: 'vendor-1', collaboratorUid: 'collab-1' };
+    expect(assignedCollaboratorLabel(reqData, collaborators)).toBe('Maria Felix');
+    expect(assignedCollaboratorLabel(reqData, [{ uid: 'vendor-1', name: 'Jamie Rivera' }])).toBe('Unknown (collab-1)');
   });
 });
 
-describe('projectStatusBadgeClasses', () => {
+describe('REQUEST_STATUSES', () => {
+  it('lists the 8-state lifecycle in forward order', () => {
+    expect(REQUEST_STATUSES).toEqual([
+      'Draft', 'Needs Quote', 'Waiting', 'Scheduled',
+      'In Progress', 'Needs Review', 'Complete', 'Archived'
+    ]);
+  });
+});
+
+describe('requestStatusBadgeClasses', () => {
   it('returns a distinct class set for each known status', () => {
-    const classes = PROJECT_STATUSES.map(projectStatusBadgeClasses);
-    expect(new Set(classes).size).toBe(PROJECT_STATUSES.length);
+    const classes = REQUEST_STATUSES.map(requestStatusBadgeClasses);
+    expect(new Set(classes).size).toBe(REQUEST_STATUSES.length);
   });
 
-  it('falls back to the Pending Approval styling for unknown/missing status', () => {
-    expect(projectStatusBadgeClasses('Pending Approval')).toBe(projectStatusBadgeClasses(undefined));
-    expect(projectStatusBadgeClasses('Pending Approval')).toBe(projectStatusBadgeClasses('bogus'));
+  it('falls back to the Draft styling for unknown/missing status', () => {
+    expect(requestStatusBadgeClasses('Draft')).toBe(requestStatusBadgeClasses(undefined));
+    expect(requestStatusBadgeClasses('Draft')).toBe(requestStatusBadgeClasses('bogus'));
+  });
+});
+
+describe('costForRequest / costLabelForRequest (BRL3)', () => {
+  it('reports no cost recorded when nothing is set', () => {
+    expect(costForRequest({})).toBe(0);
+    expect(costLabelForRequest({})).toBe('No cost recorded');
+  });
+
+  it('prefers estimatedCost when only it is set', () => {
+    expect(costForRequest({ estimatedCost: 100 })).toBe(100);
+    expect(costLabelForRequest({ estimatedCost: 100 })).toBe('Estimated');
+  });
+
+  it('prefers quotedCost over estimatedCost', () => {
+    expect(costForRequest({ estimatedCost: 100, quotedCost: 150 })).toBe(150);
+    expect(costLabelForRequest({ estimatedCost: 100, quotedCost: 150 })).toBe('Quoted');
+  });
+
+  it('prefers finalCost over quotedCost and estimatedCost', () => {
+    const reqData = { estimatedCost: 100, quotedCost: 150, finalCost: 175 };
+    expect(costForRequest(reqData)).toBe(175);
+    expect(costLabelForRequest(reqData)).toBe('Final');
+  });
+
+  it('treats null/empty-string cost fields as not set', () => {
+    expect(costForRequest({ estimatedCost: 100, finalCost: null })).toBe(100);
+    expect(costForRequest({ estimatedCost: 100, finalCost: '' })).toBe(100);
+  });
+
+  it('parses string-valued numeric fields (matches raw DOM input.value)', () => {
+    expect(costForRequest({ estimatedCost: '42.50' })).toBe(42.5);
+  });
+
+  it('falls back to 0 for a non-numeric cost value', () => {
+    expect(costForRequest({ estimatedCost: 'abc' })).toBe(0);
   });
 });
 

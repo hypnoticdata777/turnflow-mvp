@@ -14,56 +14,65 @@ status column there when a package ships, don't track status here.
 
 | Version | What it is |
 |---|---|
-| v1.0 | Current shipped state — a role-based **property-turnover** tool (PM/technician/client). Pre-pivot baseline. |
-| v1.1 | **Foundation pivot.** Rename the domain model and roles so the app honestly speaks "homeowner maintenance," with zero new user-facing capability yet. Prerequisite for everything below. |
-| **v1.2** | **The MVP.** First version that credibly embodies all 10 requirement pillars at minimum useful depth. This is the release the "10 requirements" brief describes. |
+| v1.0 | Pre-pivot baseline — a role-based **property-turnover** tool (PM/technician/client). Superseded. |
+| v1.1 | ✅ **Shipped 2026-07-29. Foundation pivot.** Domain model and roles now speak "homeowner maintenance" (owner/vendor/collaborator, properties/requests). |
+| **v1.2** | **The MVP, in progress.** First version that credibly embodies all 10 requirement pillars at minimum useful depth. This is the release the "10 requirements" brief describes. |
 | v1.3–v1.5 | Near-term hardening and expansion once real users are on v1.2 — SMS/push, maps, PWA packaging, accessibility audit, environment separation. |
 | v2.0 | Vendor marketplace + payments + advisor roles + portfolio scale — explicitly deferred by `CON4`, built only once v1.2's core loop is validated. |
 
 ---
 
-## v1.1 — Foundation pivot (target: ~1–2 weeks)
+## v1.1 — Foundation pivot ✅ (shipped 2026-07-29)
 
 Goal: make the *domain model and language* match the product before adding
-homeowner-facing features on top of the wrong nouns. No new user value
-ships in this version — it's entirely a rename/restructure, done once so
-v1.2 isn't built on a data model borrowed from a different business.
+homeowner-facing features on top of the wrong nouns.
 
-- [ ] **`Property` becomes a first-class entity.** New `properties/{propertyId}`
-      collection (address, nickname, ownerUid, createdAt). A request always
-      references a property; a property can have many requests. Closes
-      `FR1`, and is the prerequisite for `BRL1`.
-- [ ] **`projects` → `requests`, reshaped.** Rename the collection and drop
-      the itemized-labor-estimate shape (`tasks: [{hours, rate, material}]`)
-      in favor of a single-issue-per-request shape: category, urgency,
-      room/location, photos, notes, access instructions, preferred contact
-      method, status. This is the schema `FR2`/`FEAT1` get built on in v1.2.
-- [ ] **Role remap.** `pm`/`admin` → `owner` (account owner/homeowner);
-      `tech` → `vendor`, moved from per-project assignment to per-request
-      invite; `client` → `collaborator` (household member), moved from
-      `clientId`-on-project to explicit property/request-level sharing.
-      Closes `SYS2`. Update `firestore.rules`/`storage.rules` and every
-      page guard (`requireRole`/`requireAnyRole`) to the new role names —
-      this is a mechanical but repo-wide change (see `ARCHITECTURE.md`'s
-      file map for every guard call site).
-- [ ] **Close the vendor read-scoping gap while touching roles anyway.**
-      Legacy `NFR1`/current `BRL6`: a `tech`/`vendor` can currently read
-      any project via `firestore.rules`, not just assigned ones. Scope
-      vendor reads to their invited requests as part of this rewrite,
-      since the rules file is being rewritten for the role rename regardless
-      — doing it separately later means touching the same file twice.
-- [ ] **Copy pass.** Every page, button label, and email-adjacent string
-      that says "project," "technician," "PM," or "client" gets renamed to
-      "request," "vendor," "owner," "collaborator." Partial credit for
-      `CON2`/`QA1`, fully closed in v1.2's dedicated copy work.
-- [ ] **Decide on data migration vs. fresh start.** If there's no real
-      production data yet (single-user POC), the cheapest path is to wipe
-      and reseed rather than write a migration script. Confirm this before
-      starting — it changes the shape of this phase materially.
+- [x] **`Property` becomes a first-class entity.** New `properties/{propertyId}`
+      collection (address, unit, nickname, ownerUid, createdAt) —
+      `firestore-properties.js`, `properties.html`. A request always
+      references a property (`propertyId`); a property can have many
+      requests. Closes `FR1`, and is the prerequisite for `BRL1` (✅).
+- [x] **`projects` → `requests`, reshaped.** `firestore-projects.js` is gone,
+      replaced by `firestore-requests.js`. Dropped the itemized-labor-estimate
+      shape (`tasks: [{hours, rate, material}]`) in favor of a
+      single-issue-per-request shape: category, urgency, room/location,
+      notes, access instructions, preferred contact method, status
+      (`new-request.html`). Photos moved to a top-level
+      `requests/{requestId}/photos/{photoId}` subcollection with real
+      document IDs — this also resolves the pre-pivot task-identity/
+      cascading-delete quirk for free (no more "index beyond array length"
+      concept). This is the schema `FR2`/`FEAT1` continue to build on in v1.2.
+- [x] **Role remap.** `pm`/`admin` → single `owner` role; `tech` → `vendor`;
+      `client` → `collaborator`. Closes `SYS2` (✅). Every page guard
+      (`guard-owner.js`, `vendor.guard.js`, `collaborator.guard.js`) and
+      `firestore.rules`/`storage.rules` updated to the new role names —
+      confirmed via a repo-wide grep for the old role strings/collection
+      names after the rewrite (see `DEVLOG.md`).
+- [x] **Closed the vendor read-scoping gap.** `BRL6` (✅): `firestore.rules`
+      and `storage.rules` now scope a `vendor`'s reads to
+      `assignedVendorUid == request.auth.uid` (and a `collaborator`'s to
+      `collaboratorUid`), not "any authenticated user of that role" like
+      the pre-pivot model. Still assignment-from-a-dropdown, not a real
+      email invite — that UX gap is v1.2 Package 3, but the actual access
+      boundary this rule is about is closed.
+- [x] **Copy pass.** Owner/vendor/collaborator, properties/requests
+      language throughout every page, sidebar, and header. `CON2`/`QA1`
+      moved from ⬜ to 🟡 — full homeowner-audience copy pass is still
+      v1.2 Package 12.
+- [x] **Data migration decision: fresh start.** No production data existed
+      yet, so the schema/role rewrite shipped clean with no migration
+      script — confirmed with the project owner before starting.
+- [x] **Kept, not rebuilt:** the security-rules pattern, CSP header
+      (`script-src` still has no `'unsafe-inline'`), login lockout + App
+      Check wiring, cursor-based pagination (now `getRequestsPage`), and
+      CI/unit tests (36 tests, updated for the new schema) all carried
+      forward and re-pointed at the new model rather than redone.
 
-**Exit criteria:** every collection, role, and page in the app uses
-TurnFlow Home's nouns. No homeowner-facing feature work has started yet —
-that's v1.2.
+**Exit criteria met:** every collection, role, and page in the app uses
+TurnFlow Home's nouns; `npm test` passes (36/36); every HTML/JS
+cross-reference was grepped for staleness post-rewrite. No homeowner-facing
+feature work beyond the schema/role foundation shipped in this version —
+that's v1.2, next.
 
 ---
 
@@ -77,37 +86,38 @@ one is either a prerequisite for the next or delivers standalone value if
 priorities shift mid-build; they don't have to ship as one release.
 
 ### Package 1 — Guided intake (`FEAT1`, `FR2`, `FR3`, `BRL4`, `CON1`, `UR1`, `UR2`)
-Replace the turnover-job builder with a single-issue guided form: category
-(plumbing/electrical/HVAC/appliance/roof/structural/pest/other), urgency,
-room/location, photos, notes, preferred contact method, access
-instructions. Ship a static category → next-step checklist + recommended
-evidence list (no ML needed — a lookup table is sufficient for MVP and
-directly testable). Add the "not an emergency dispatch service" disclaimer
-wherever urgency is marked high/emergency (`BRL4`/`CON1`).
+**Partly done in v1.1:** `new-request.html` is already a single-issue form
+with category/urgency/room-location/notes/contact-method/access-instructions,
+and shows the emergency disclaimer when urgency is set to Emergency
+(`BRL4`). **Still open:** photos aren't captured inline at creation (they're
+added afterward on `request.html`); there's no category → next-step
+checklist or recommended-evidence prompts yet (`FR3`'s harder half, `UR2`).
 
 ### Package 2 — Status lifecycle & dashboard (`FR6`, `FEAT2`)
-Implement the 8-state lifecycle (Draft, Needs Quote, Waiting, Scheduled,
-In Progress, Needs Review, Complete, Archived) as the shared source of
-truth, replacing the legacy 4-state one. Rebuild the dashboard around it
-with filtered views (open / scheduled / waiting / approved / completed) —
-reuse the pagination work from legacy `NFR5` (`getProjectsPage()`-style
-cursor queries), just re-pointed at `requests`.
+**Partly done in v1.1:** the 8-state lifecycle (Draft, Needs Quote,
+Waiting, Scheduled, In Progress, Needs Review, Complete, Archived) is
+already the shared source of truth (`REQUEST_STATUSES` in `utils.js`),
+used by the dashboard, vendor view, and collaborator portal. Pagination
+was re-pointed at `requests` (`getRequestsPage()`). **Still open:**
+filtered/grouped views by status (today it's one flat list with a status
+badge per card).
 
 ### Package 3 — Vendor invite & scoped package (`BRL6`, `FR4`, `SYS7`, `UR5`)
-Real invite flow: owner enters a vendor email, system creates a scoped
-invite (magic link or invite code + account creation) granting that
-vendor read access to exactly one request's package — photos, notes,
-access instructions, contact rules — and nothing else. Enforced in
-`firestore.rules`, not just hidden in the UI (this is where `BRL6`
-actually gets closed, not just documented as a gap).
+**Partly done in v1.1:** the access-control half of `BRL6`/`SYS7` is
+already closed — `firestore.rules`/`storage.rules` scope a vendor's reads
+to exactly their `assignedVendorUid` request. **Still open:** a real
+invite flow (owner enters a vendor email, system creates a scoped invite —
+magic link or invite code + account creation — instead of picking from a
+dropdown of vendor-role users who already have accounts).
 
 ### Package 4 — Quote workspace (`FEAT3`, `FR5`, `BRL3`, `BR4`, `UR3`)
-Per-request quote records: vendor, amount, attachment (PDF/photo of the
-quote), notes, status (pending/selected/declined). Side-by-side comparison
-view when a request has 2+ quotes. Separate `estimatedCost` /
-`quotedCost` / `finalCost` fields so "estimate" vs. "actual" is never
-ambiguous (`BRL3`). Approving a quote records who approved it and when
-(feeds Package 5).
+**Partly done in v1.1:** separate `estimatedCost` / `quotedCost` /
+`finalCost` fields already exist per request, with `costForRequest()`/
+`costLabelForRequest()` resolving which is authoritative, so "estimate"
+vs. "actual" is never ambiguous (`BRL3`). **Still open:** per-request
+quote *records* (plural — vendor, amount, attachment, notes, status) and
+a side-by-side comparison view when a request has 2+ competing quotes.
+Approving a quote records who approved it and when (feeds Package 5).
 
 ### Package 5 — Approval & decision log (`FEAT6`, `QA3`, `BRL2`, `BRL7`, `QA4`)
 An append-only log entry generated automatically on every status
@@ -128,11 +138,13 @@ optionally by request. Reuses the existing Storage security-rule pattern
 (role + uid path checks), extended to the new path shape.
 
 ### Package 7 — Proof packet & history export (`FEAT7`, `FR7`, `EXT5`, `NFR4`, `QA6`, `CON6`, `UR6`)
-Real PDF export via `jsPDF-autotable` (closes the legacy plain-text gap
-too): a formatted proof packet for one request (photos, quotes, approval
-log, final cost) or a full property history rollup. Add CSV export
-alongside the existing JSON backup so `NFR4`/`CON6` ("common formats,"
-"not locked in") are fully met, not just JSON.
+**Partly done in v1.1:** JSON backup now exports properties + requests
+together (not a flat project dump), with restore correctly remapping
+property references. PDF export reflects the new request schema.
+**Still open:** real PDF export via `jsPDF-autotable` (closes the
+plain-text gap): a formatted proof packet for one request (photos,
+quotes, approval log, final cost) or a full property history rollup. Add
+CSV export alongside JSON so `NFR4`/`CON6` are fully met.
 
 ### Package 8 — Maintenance calendar & recurring reminders (`FEAT4`, `FR8`, `EXT3`)
 Recurring maintenance definitions (HVAC filter, gutter cleaning, water

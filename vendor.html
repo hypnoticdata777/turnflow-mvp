@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vendor — TurnFlow Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <base href="./">
+</head>
+
+<body class="bg-gray-100">
+
+  <script type="module" src="public/js/pages/vendor.guard.js"></script>
+
+  <script type="module" src="public/js/pages/vendor.header.js"></script>
+
+  <main class="max-w-5xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6">🛠 Assigned Requests</h1>
+
+    <section class="bg-white p-4 rounded shadow mb-6">
+      <h2 class="text-xl font-semibold mb-3">My Requests</h2>
+      <div id="vendor-requests" class="space-y-4">
+        <p class="text-gray-500">Loading…</p>
+      </div>
+    </section>
+
+    <section class="bg-white p-4 rounded shadow">
+      <h2 class="text-xl font-semibold mb-4">Upload Photos</h2>
+      <label class="block mb-4">Request
+        <select id="requestId" class="w-full border p-2 rounded bg-white">
+          <option value="">— select a request —</option>
+        </select>
+      </label>
+
+      <div id="uploadSection" class="hidden">
+        <div class="grid md:grid-cols-4 gap-4">
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">Before</h3>
+            <input id="beforeInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="before" class="uploadBtn bg-blue-600 text-white px-3 py-1 rounded">Upload</button>
+          </div>
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">After</h3>
+            <input id="afterInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="after" class="uploadBtn bg-green-600 text-white px-3 py-1 rounded">Upload</button>
+          </div>
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">Receipt</h3>
+            <input id="receiptInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="receipt" class="uploadBtn bg-yellow-600 text-white px-3 py-1 rounded">Upload</button>
+          </div>
+          <div class="border p-3 rounded">
+            <h3 class="font-medium mb-2">Other</h3>
+            <input id="otherInput" type="file" accept="image/*" capture="environment" class="mb-2">
+            <button data-type="other" class="uploadBtn bg-gray-600 text-white px-3 py-1 rounded">Upload</button>
+          </div>
+        </div>
+        <p id="status" class="text-sm mt-3 text-gray-600"></p>
+      </div>
+
+      <h3 class="text-lg font-semibold mt-6 mb-3">Gallery</h3>
+      <div id="gallery" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+    </section>
+  </main>
+
+  <script type="module" src="public/js/pages/vendor.js"></script>
+</body>
+</html>

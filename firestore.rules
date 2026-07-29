@@ -11,65 +11,89 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    function isPMorAdmin() {
-      return isAuthed() && getRole() in ['pm', 'admin'];
+    function isOwnerRole() {
+      return isAuthed() && getRole() == 'owner';
     }
 
-    function isAdmin() {
-      return isAuthed() && getRole() == 'admin';
+    function isVendorRole() {
+      return isAuthed() && getRole() == 'vendor';
     }
 
-    function isTech() {
-      return isAuthed() && getRole() == 'tech';
+    function isCollaboratorRole() {
+      return isAuthed() && getRole() == 'collaborator';
     }
 
-    function isClient() {
-      return isAuthed() && getRole() == 'client';
+    function requestDoc(requestId) {
+      return get(/databases/$(database)/documents/requests/$(requestId)).data;
     }
 
     // ── Users ─────────────────────────────────────────────────────────────
-    // Users can read their own profile; PM/Admin can also read any user doc
-    // (needed to list technicians for project assignment). Only admins write.
+    // Users can read their own profile; owners can also read any user doc
+    // (needed to list vendors/collaborators for the assignment dropdowns).
+    // No client writes at all — role assignment is console-only, same as
+    // pre-pivot (see docs/SETUP.md); there's no self-serve signup yet.
     match /users/{userId} {
-      allow read: if isAuthed() && (request.auth.uid == userId || isPMorAdmin());
-      allow write: if isAdmin();
+      allow read: if isAuthed() && (request.auth.uid == userId || isOwnerRole());
+      allow write: if false;
     }
 
-    // ── Projects ──────────────────────────────────────────────────────────
-    // PM/Admin/Tech can read any project (tech-side filtering to "my
-    // projects" happens client-side in technician.html). Clients can only
-    // read a project that has been explicitly shared with them via
-    // clientId — otherwise every client could read every property's data.
-    // Only PM or Admin can create, update, or delete projects.
-    match /projects/{projectId} {
-      allow read: if isAuthed() && (!isClient() || resource.data.clientId == request.auth.uid);
-      allow create: if isPMorAdmin();
-      allow update: if isPMorAdmin();
-      allow delete: if isPMorAdmin();
+    // ── Properties ────────────────────────────────────────────────────────
+    // A property belongs to exactly one owner (BRL1). Only that owner can
+    // read, create, update, or delete it — there is no cross-owner sharing
+    // of properties in v1.1 (household/vendor sharing works at the request
+    // level for now; see BRL5/BRL6 and ROADMAP.md v1.2 Package 10).
+    match /properties/{propertyId} {
+      allow read: if isOwnerRole() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isOwnerRole() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isOwnerRole() && resource.data.ownerUid == request.auth.uid;
+    }
 
-      // Photos subcollection (nested under tasks)
-      // Any authenticated user can read photos.
-      // Technicians can upload their own photos.
-      // PM/Admin can delete — matches the project-level delete rule above,
-      // since deleting a project cascades to delete its task photos too
-      // (see deleteProject() in firestore-projects.js); admin-only here
-      // would leave a plain pm unable to fully delete their own project.
-      match /tasks/{taskId}/photos/{photoId} {
-        allow read: if isAuthed();
-        allow create: if isTech() && request.auth.uid == request.resource.data.techId;
-        allow update: if isAdmin();
-        allow delete: if isPMorAdmin();
+    // ── Requests ──────────────────────────────────────────────────────────
+    // Replaces the pre-pivot `projects` collection. Read is scoped three
+    // ways, closing the legacy vendor over-read gap (BRL6): an owner reads
+    // only their own requests, a vendor reads only the request they're
+    // assigned to, a collaborator reads only the request explicitly shared
+    // with them — never "any request," unlike the old tech/client model.
+    match /requests/{requestId} {
+      allow read: if isAuthed() && (
+        (isOwnerRole() && resource.data.ownerUid == request.auth.uid) ||
+        (isVendorRole() && resource.data.assignedVendorUid == request.auth.uid) ||
+        (isCollaboratorRole() && resource.data.collaboratorUid == request.auth.uid)
+      );
+      allow create: if isOwnerRole() && request.resource.data.ownerUid == request.auth.uid;
+      // Vendors can update a request they're assigned to (e.g. moving
+      // status to "In Progress"/"Needs Review") but not reassign or delete it.
+      allow update: if isAuthed() && (
+        (isOwnerRole() && resource.data.ownerUid == request.auth.uid) ||
+        (isVendorRole() && resource.data.assignedVendorUid == request.auth.uid)
+      );
+      allow delete: if isOwnerRole() && resource.data.ownerUid == request.auth.uid;
+
+      // Photos subcollection — real Firestore-assigned document IDs now
+      // (not a task-array-index string), which also resolves the legacy
+      // task-identity/cascading-delete gap noted in the pre-pivot
+      // ARCHITECTURE.md: there's no "index beyond the current array
+      // length" concept left to orphan.
+      match /photos/{photoId} {
+        allow read: if isAuthed() && (
+          (isOwnerRole() && requestDoc(requestId).ownerUid == request.auth.uid) ||
+          (isVendorRole() && requestDoc(requestId).assignedVendorUid == request.auth.uid) ||
+          (isCollaboratorRole() && requestDoc(requestId).collaboratorUid == request.auth.uid)
+        );
+        allow create: if isAuthed() && request.auth.uid == request.resource.data.uploadedByUid && (
+          (isOwnerRole() && requestDoc(requestId).ownerUid == request.auth.uid) ||
+          (isVendorRole() && requestDoc(requestId).assignedVendorUid == request.auth.uid)
+        );
+        allow update: if false; // photos are immutable evidence once uploaded
+        allow delete: if isOwnerRole() && requestDoc(requestId).ownerUid == request.auth.uid;
       }
     }
 
     // ── Contacts ──────────────────────────────────────────────────────────
-    // Any authenticated user can read contacts.
-    // Only PM or Admin can create, update, or delete contacts.
+    // Any authenticated user can read contacts; only an owner manages them.
     match /contacts/{contactId} {
       allow read: if isAuthed();
-      allow create: if isPMorAdmin();
-      allow update: if isPMorAdmin();
-      allow delete: if isPMorAdmin();
+      allow create, update, delete: if isOwnerRole();
     }
   }
 }

@@ -1,5 +1,5 @@
 // ===================================================
-// TurnFlow™ Shared Utilities
+// TurnFlow Home — Shared Utilities
 // ===================================================
 
 /**
@@ -19,8 +19,10 @@ export function escHtml(str) {
 }
 
 /**
- * Task status + cost helpers.
- * Kept dependency-free (no DOM, no Firebase) so they're unit-testable in Node.
+ * Date helpers. Kept dependency-free (no DOM, no Firebase) so they're
+ * unit-testable in Node. Generic on purpose — reused by the v1.2
+ * recurring-maintenance/reminders work (see docs/ROADMAP.md Package 8),
+ * not just request fields.
  */
 
 export function tf_isValidDate(d) {
@@ -32,41 +34,6 @@ export function tf_parseDate(value) {
   if (typeof value === "number") return new Date(value);
   const d = new Date(value);
   return tf_isValidDate(d) ? d : undefined;
-}
-
-// Returns one of: 'completed' | 'overdue' | 'blocked' | 'inprogress' | 'open'
-export function tf_getTaskStatus(task, now = new Date()) {
-  if (task?.completed) return "completed";
-  if (task?.blocked) return "blocked";
-  const due = tf_parseDate(task?.dueDate);
-  if (due && due < now) return "overdue";
-  const start = tf_parseDate(task?.startTime);
-  if (start && !task?.endTime) return "inprogress";
-  return "open";
-}
-
-export function tf_statusLabel(key) {
-  const labels = {
-    completed: "Completed",
-    overdue: "Overdue",
-    blocked: "Blocked",
-    inprogress: "In Progress",
-    open: "Pending"
-  };
-  return labels[key] || "Pending";
-}
-
-/**
- * Sums (hours * rate) + material across a list of task-like objects.
- * Non-numeric fields are treated as 0, matching the live-estimate UI behavior.
- */
-export function calculateEstimateTotal(tasks = []) {
-  return tasks.reduce((total, t) => {
-    const hours = parseFloat(t?.hours) || 0;
-    const rate = parseFloat(t?.rate) || 0;
-    const material = parseFloat(t?.material) || 0;
-    return total + (hours * rate) + material;
-  }, 0);
 }
 
 /**
@@ -81,8 +48,8 @@ export function formatUserLabel(user) {
 
 /**
  * Resolves a uid against a list of user docs to a display label, or a
- * fallback if unassigned/not found. Shared by the tech-assignment and
- * client-assignment dropdowns on the PM dashboard.
+ * fallback if unassigned/not found. Shared by the vendor-assignment and
+ * collaborator-sharing dropdowns on the owner dashboard.
  */
 function resolveAssignedLabel(uid, users = []) {
   if (!uid) return 'Unassigned';
@@ -90,35 +57,92 @@ function resolveAssignedLabel(uid, users = []) {
   return match ? formatUserLabel(match) : `Unknown (${uid})`;
 }
 
-/** Display label for a project's assignedTechId within a list of tech users. */
-export function assignedTechLabel(project, techUsers = []) {
-  return resolveAssignedLabel(project?.assignedTechId, techUsers);
+/** Display label for a request's assignedVendorUid within a list of vendor users. */
+export function assignedVendorLabel(reqData, vendorUsers = []) {
+  return resolveAssignedLabel(reqData?.assignedVendorUid, vendorUsers);
 }
 
-/** Display label for a project's clientId within a list of client users. */
-export function assignedClientLabel(project, clientUsers = []) {
-  return resolveAssignedLabel(project?.clientId, clientUsers);
+/** Display label for a request's collaboratorUid within a list of collaborator users. */
+export function assignedCollaboratorLabel(reqData, collaboratorUsers = []) {
+  return resolveAssignedLabel(reqData?.collaboratorUid, collaboratorUsers);
 }
 
 /**
- * A project's lifecycle, in order. Not enforced as a strict state machine —
- * a PM can set any project to any status (e.g. to correct a mistake) — but
- * this is the intended forward path and the canonical list of valid values.
+ * A request's lifecycle (FR6 in docs/REQUIREMENTS.md), in order. Not
+ * enforced as a strict state machine — an owner can set any request to
+ * any status (e.g. to correct a mistake) — but this is the intended
+ * forward path and the canonical list of valid values. Replaces the
+ * pre-pivot 4-state PROJECT_STATUSES.
  */
-export const PROJECT_STATUSES = ['Pending Approval', 'Approved', 'Sent', 'Completed'];
+export const REQUEST_STATUSES = [
+  'Draft',
+  'Needs Quote',
+  'Waiting',
+  'Scheduled',
+  'In Progress',
+  'Needs Review',
+  'Complete',
+  'Archived'
+];
 
-/** Tailwind classes for a project-status badge. Shared by dashboard.html (PM) and pending-approval.html (client). */
-export function projectStatusBadgeClasses(status) {
+/** Tailwind classes for a request-status badge. Shared by the owner dashboard, request detail view, and collaborator portal. */
+export function requestStatusBadgeClasses(status) {
   switch (status) {
-    case 'Approved': return 'bg-green-100 text-green-800';
-    case 'Sent': return 'bg-blue-100 text-blue-800';
-    case 'Completed': return 'bg-gray-200 text-gray-800';
-    default: return 'bg-yellow-100 text-yellow-800'; // Pending Approval / anything else
+    case 'Needs Quote': return 'bg-yellow-100 text-yellow-800';
+    case 'Waiting': return 'bg-orange-100 text-orange-800';
+    case 'Scheduled': return 'bg-blue-100 text-blue-800';
+    case 'In Progress': return 'bg-indigo-100 text-indigo-800';
+    case 'Needs Review': return 'bg-purple-100 text-purple-800';
+    case 'Complete': return 'bg-green-100 text-green-800';
+    case 'Archived': return 'bg-gray-200 text-gray-700';
+    default: return 'bg-gray-100 text-gray-800'; // Draft / anything else
   }
 }
 
+/** Categories and urgency levels for the guided intake form (FEAT1/FR2). */
+export const REQUEST_CATEGORIES = [
+  'Plumbing', 'Electrical', 'HVAC', 'Appliance', 'Roof',
+  'Structural', 'Pest Control', 'Landscaping', 'Safety', 'Other'
+];
+
+export const REQUEST_URGENCIES = ['Low', 'Medium', 'High', 'Emergency'];
+
+export const CONTACT_METHODS = ['Email', 'Phone', 'Text'];
+
 /**
- * Client-side login lockout (NFR3, partial — see docs/ARCHITECTURE.md).
+ * Resolves the single "current cost" of a request from its three cost
+ * fields, and labels which one it came from — the direct implementation
+ * of BRL2/BRL3 in docs/REQUIREMENTS.md ("costs remain estimates until a
+ * vendor quote, invoice, or homeowner-entered final cost is attached").
+ * finalCost wins over quotedCost wins over estimatedCost.
+ */
+export function costForRequest(reqData) {
+  const value = firstDefinedCost(reqData);
+  const num = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+/** 'Final' | 'Quoted' | 'Estimated' | 'No cost recorded' — pairs with costForRequest(). */
+export function costLabelForRequest(reqData) {
+  if (isSetCost(reqData?.finalCost)) return 'Final';
+  if (isSetCost(reqData?.quotedCost)) return 'Quoted';
+  if (isSetCost(reqData?.estimatedCost)) return 'Estimated';
+  return 'No cost recorded';
+}
+
+function isSetCost(v) {
+  return v !== undefined && v !== null && v !== '';
+}
+
+function firstDefinedCost(reqData) {
+  if (isSetCost(reqData?.finalCost)) return reqData.finalCost;
+  if (isSetCost(reqData?.quotedCost)) return reqData.quotedCost;
+  if (isSetCost(reqData?.estimatedCost)) return reqData.estimatedCost;
+  return 0;
+}
+
+/**
+ * Client-side login lockout (legacy NFR3, partial — see docs/ARCHITECTURE.md).
  * Pure functions over an `attempts` map so they're unit-testable; auth.js
  * wires them to actual localStorage. This deters casual repeated retries
  * from the same browser — it does NOT stop a script hitting Firebase
