@@ -32,7 +32,7 @@ frictionless to run (`npx serve .` and go) but means there's no dependency
 lockfile for the frontend runtime libs, no tree-shaking, and no offline dev
 story. See `ROADMAP.md` for when this stops being the right tradeoff.
 
-## Roles
+## Roles (current, pre-pivot — see "Target domain model" above for `owner`/`vendor`/`collaborator`)
 
 | Role | Home page | Can do |
 |---|---|---|
@@ -68,7 +68,7 @@ assigned to, and a collaborator only the specific request shared with
 them — enforced in `firestore.rules`/`storage.rules`, not just hidden in
 the UI (see BRL6 in `REQUIREMENTS.md`).
 
-## Data model (Firestore)
+## Data model (Firestore) — current, pre-pivot
 
 ```
 users/{uid}

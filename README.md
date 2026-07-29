@@ -18,7 +18,15 @@ operation.
 
 ---
 
-### Roles
+### Target roles (see `docs/ROADMAP.md` v1.1 for the rename in progress)
+
+| Role | What they do |
+|------|-----------|
+| **Owner** (account owner / homeowner) | Create and manage properties; create and track maintenance requests; invite vendors and collaborators; approve quotes; export proof packets |
+| **Household collaborator** | Add updates on properties/requests explicitly shared with them; no visibility into unrelated records |
+| **Invited vendor** | See the scoped request package (photos, notes, access instructions, contact rules) for exactly the request they were invited to |
+
+### Current implementation roles (pre-pivot, still live in code today)
 
 | Role | Home page | Can do |
 |------|-----------|--------|
@@ -33,7 +41,7 @@ request ID directly against the SDK.
 
 ---
 
-### Features
+### Features (current implementation)
 
 - **Properties** — An owner manages one or more properties; every request belongs to exactly one property
 - **Maintenance requests** — Single-issue intake (category, urgency, room/location, preferred contact method, access instructions, notes); 8-state lifecycle: Draft → Needs Quote → Waiting → Scheduled → In Progress → Needs Review → Complete → Archived
@@ -50,6 +58,12 @@ top of it — guided next-step checklists, a quote comparison workspace,
 real vendor email invites, an approval/decision log, a property document
 vault, recurring maintenance reminders, and proof-packet export — is
 tracked as v1.2 in `docs/ROADMAP.md`.
+
+This feature set is the raw material the roadmap builds the TurnFlow Home
+MVP (v1.2) on top of — see `docs/ROADMAP.md` for exactly which pieces get
+reused, renamed, or replaced, and `docs/REQUIREMENTS.md` for what's
+genuinely new (guided intake, quote workspace, vendor invites, recurring
+reminders, proof packets, and more).
 
 ---
 
