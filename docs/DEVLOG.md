@@ -7,6 +7,52 @@ reference the ID so status stays traceable.
 
 ---
 
+### 2026-07-29 — Product pivot: TurnFlow Home requirements adopted, documentation realigned
+
+- **Decision:** TurnFlow is pivoting from the pre-pivot property-turnover
+  management POC (PM/technician/client roles, turnover-job estimates) to
+  **TurnFlow Home** — a guided maintenance self-management product for
+  homeowners and owner clients. No code shipped in this entry; this is
+  the documentation and requirements realignment that precedes the v1.1
+  data-model/role rewrite.
+- **`docs/REQUIREMENTS.md` replaced** with the canonical 10-pillar
+  TurnFlow Home requirement set (Business Requirements, Business Rules,
+  Constraints, External Interfaces, Features, Functional, Nonfunctional,
+  Quality Attributes, System, User Requirements — `BR`/`BRL`/`CON`/`EXT`/
+  `FEAT`/`FR`/`NFR`/`QA`/`SYS`/`UR` IDs), each row carrying a gap-status
+  assessment against the current code. The legacy FR/NFR requirement set
+  that shaped the code through 2026-07-12 is preserved as Appendix A for
+  traceability — it's superseded, not deleted, since several of its items
+  (security rules, CSP, pagination, cascading delete) remain relevant
+  infrastructure.
+- **`docs/ROADMAP.md` rewritten** around a new version framing: v1.0
+  (current pre-pivot baseline) → v1.1 (foundation pivot: rename/reshape
+  the data model and roles, no new user-facing capability) → **v1.2 (the
+  MVP** — 12 packages, each mapped to the requirement IDs above, covering
+  every one of the 10 pillars at minimum viable depth) → v1.3–v1.5
+  (post-MVP hardening: SMS/push, maps, PWA, accessibility, env
+  separation) → v2.0 (vendor marketplace, payments, advisor roles,
+  portfolio scale — deferred per `CON4`). The pre-pivot Phase 0–4 plan is
+  kept as an appendix; Phases 0–2 shipped real, reusable infrastructure,
+  and Phases 3–4's remaining items were folded into the new v1.2/v1.3+
+  packages rather than completed as originally scoped.
+- **`docs/ARCHITECTURE.md`** gained a "Target domain model" section
+  (properties/requests/quotes/vendorInvites/decisionLog/documents/
+  recurringTasks/sharing collections, owner/vendor/collaborator roles) up
+  top, ahead of the existing current-state architecture, which is now
+  explicitly labeled "current, pre-pivot."
+- **`README.md`** repositioned around TurnFlow Home with a status banner
+  pointing readers to `REQUIREMENTS.md`/`ROADMAP.md` as the source of
+  truth, while keeping the existing feature/role/setup documentation for
+  the code as it runs today.
+- **`docs/WORKBOOK.md`** snapshot and reading-order updated to reflect the
+  pivot and point newcomers at `REQUIREMENTS.md` first.
+- **Not done in this pass:** no v1.1 code changes (the actual
+  `properties`/`requests` collections, role rename, or rule rewrite)
+  shipped yet — that's the next work, tracked in `ROADMAP.md` v1.1.
+
+---
+
 ### 2026-07-12 — Phase 2: dashboard pagination (NFR5) — Phase 2 addressed
 
 - **Added:** `getProjectsPage({ pageSize, cursor })` in
